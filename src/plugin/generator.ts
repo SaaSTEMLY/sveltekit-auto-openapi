@@ -136,7 +136,18 @@ async function _generateInternal(
       const methodKey = method.toLowerCase();
       const methodKeyUpper = method; // Keep uppercase for runtime config lookups
 
-      if (!exportedMethods.has(method)) return;
+      // Check if method is actually implemented (exported)
+      const isImplemented = exportedMethods.has(method);
+
+      // Check if method has config defined (standardSchema or openapiOverride)
+      const hasConfig = !!(
+        runtimeConfig.standardSchema?.[methodKeyUpper] ||
+        // @ts-expect-error -- Dynamic method key access on PathItemObject mapped type
+        runtimeConfig.openapiOverride?.[methodKeyUpper]
+      );
+
+      // Skip if method is not implemented AND has no config
+      if (!isImplemented && !hasConfig) return;
 
       // Initialize base operation with defaults (lowest priority)
       const baseOperation: any = {
@@ -178,6 +189,7 @@ async function _generateInternal(
           modulePath: file, // Relative path from project root
           hasInput: !!val.input,
           hasOutput: !!val.output,
+          isImplemented, // Track if method is actually exported
         };
 
         // Input Schema - handle RequestOptions structure
@@ -375,7 +387,7 @@ async function _generateInternal(
       }
 
       // --- Build Scenario A: Manual Override (Highest Priority) ---
-      // @ts-expect-error -- ZodSchema type
+      // @ts-expect-error -- Dynamic method key access on PathItemObject mapped type
       const scenarioA = runtimeConfig.openapiOverride?.[methodKeyUpper] || {};
 
       // Merge all scenarios with custom merger (A > B > C > base priority)

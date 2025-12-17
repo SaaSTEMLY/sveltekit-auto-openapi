@@ -199,13 +199,14 @@ export default function svelteOpenApi(): Plugin {
               for (const [method, data] of Object.entries(
                 methods as Record<string, any>
               )) {
-                const { modulePath } = data as any;
+                const { modulePath, isImplemented } = data as any;
                 const varName = modulePathMap[modulePath];
 
                 methodEntries.push(
                   `    get ${method}() {
         const mod = ${varName};
-        return mod?._config?.validation?.["${method}"];
+        const validation = mod?._config?.standardSchema?.["${method}"];
+        return validation ? { ...validation, isImplemented: ${isImplemented} } : undefined;
       }`
                 );
               }
@@ -270,8 +271,20 @@ export default function svelteOpenApi(): Plugin {
           2
         )};`;
 
+        // Build validation map with metadata (excluding modulePath since we can't dynamically import in build)
+        const buildValidationMap: any = {};
+        for (const [routePath, methods] of Object.entries(validationMap)) {
+          buildValidationMap[routePath] = {};
+          for (const [method, data] of Object.entries(methods as Record<string, any>)) {
+            const { isImplemented } = data as any;
+            // In build mode, validation is disabled (schemas not bundled)
+            // Only include isImplemented flag to return 501 for unimplemented methods
+            buildValidationMap[routePath][method] = { isImplemented };
+          }
+        }
+
         const validationMapContent = `export default ${JSON.stringify(
-          validationMap,
+          buildValidationMap,
           null,
           2
         )};`;

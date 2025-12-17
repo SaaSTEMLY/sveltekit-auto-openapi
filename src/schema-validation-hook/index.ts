@@ -43,6 +43,15 @@ const SchemaValidationHook =
       return await resolve(event);
     }
 
+    // ===== CHECK IF METHOD IS IMPLEMENTED =====
+    if (methodValidation.isImplemented === false) {
+      // Method has config but is not implemented
+      return json(
+        { error: "Not implemented" },
+        { status: 501 }
+      );
+    }
+
     // ===== INPUT VALIDATION =====
     if (methodValidation.input) {
       const inputResult = await validateInput(event, methodValidation);

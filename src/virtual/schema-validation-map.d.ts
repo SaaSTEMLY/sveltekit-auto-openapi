@@ -20,6 +20,7 @@ export interface OutputValidationConfig {
 export interface MethodValidationConfig {
   input?: InputValidationConfig;
   output?: Record<string, OutputValidationConfig>;
+  isImplemented?: boolean; // Track if method is actually exported in +server.ts
 }
 
 // Registry maps route paths to methods to validation configs
