@@ -5,6 +5,7 @@
     "": {
       "name": "sveltekit-auto-openapi",
       "dependencies": {
+        "@scalar/sveltekit": "^0.1.32",
         "defu": "^6.1.4",
         "glob": "^13.0.0",
         "openapi-types": "^12.1.3",
@@ -18,7 +19,6 @@
         "@types/bun": "latest",
       },
       "peerDependencies": {
-        "@scalar/sveltekit": "^0.1.32",
         "typescript": "^5",
       },
     },
