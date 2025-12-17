@@ -100,11 +100,15 @@ Just write your code. We infer the schema from your generic types.
 
 ```ts
 // src/routes/api/auth/+server.ts
+import { json } from '@sveltejs/kit';
+
 export async function POST({ request }) {
-  // The schema is automatically generated from this generic!
-  const { email } = await request.json<{ email: string }>();
-  return json({ success: true });
+	// The schema is automatically generated from the type!
+	const { email }: { email: string } = await request.json();
+	console.log('🚀 ~ POST ~ email:', email);
+	return json({ success: true });
 }
+
 ```
 
 ### Level 2: Strict (Zod Validation)
