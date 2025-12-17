@@ -38,6 +38,7 @@ bun install sveltekit-auto-openapi
 ```
 
 **For Scalar API documentation** (optional):
+
 ```bash
 npm install @scalar/sveltekit
 ```
@@ -47,12 +48,12 @@ npm install @scalar/sveltekit
 Add the plugin to `vite.config.ts` to enable schema generation.
 
 ```ts
-import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
-import svelteOpenApi from 'sveltekit-auto-openapi/plugin';
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import svelteOpenApi from "sveltekit-auto-openapi/plugin";
 
 export default defineConfig({
-	plugins: [sveltekit(), svelteOpenApi()]
+  plugins: [sveltekit(), svelteOpenApi()],
 });
 ```
 
@@ -74,13 +75,13 @@ Expose your documentation at `src/routes/api-docs/[slug]/+server.ts`.
 > **Note:** This requires installing `@scalar/sveltekit` (see step 1).
 
 ```ts
-import ScalarModule from 'sveltekit-auto-openapi/scalar-module';
+import ScalarModule from "sveltekit-auto-openapi/scalar-module";
 
 const scalar = ScalarModule({
-	openApiOpts: {
-		openapi: '3.0.0',
-		info: { title: 'My App API', version: '1.0.0' }
-	}
+  openApiOpts: {
+    openapi: "3.0.0",
+    info: { title: "My App API", version: "1.0.0" },
+  },
 });
 
 export const { GET } = scalar;
@@ -100,13 +101,13 @@ Just write your code. We infer the schema from your generic types.
 
 ```ts
 // src/routes/api/auth/+server.ts
-import { json } from '@sveltejs/kit';
+import { json } from "@sveltejs/kit";
 
 export async function POST({ request }) {
-	// The schema is automatically generated from the type!
-	const { email }: { email: string } = await request.json();
-	console.log('🚀 ~ POST ~ email:', email);
-	return json({ success: true });
+  // The schema is automatically generated from the type!
+  const { email }: { email: string } = await request.json();
+  console.log("🚀 ~ POST ~ email:", email);
+  return json({ success: true });
 }
 ```
 
@@ -115,32 +116,32 @@ export async function POST({ request }) {
 Export a `_config` object to enforce runtime validation and detailed docs.
 
 ```ts
-import { json } from '@sveltejs/kit';
-import z from 'zod';
+import { json } from "@sveltejs/kit";
+import z from "zod";
 
 export const _config = {
-	// Define standard schema for automatic validation and documentation
-	standardSchema: {
-		POST: {
-			input: {
-				body: z.object({ email: z.email() }),
-				headers: z.object({ 'x-api-key': z.string() })
-			},
-			output: {
-				'200': {
-					body: z.object({
-						success: z.boolean()
-					})
-				}
-			}
-		}
-	}
+  // Define standard schema for automatic validation and documentation
+  standardSchema: {
+    POST: {
+      input: {
+        body: z.object({ email: z.email() }),
+        headers: z.object({ "x-api-key": z.string() }),
+      },
+      output: {
+        "200": {
+          body: z.object({
+            success: z.boolean(),
+          }),
+        },
+      },
+    },
+  },
 };
 
 export async function POST({ request }) {
-	const { email }: { email: string } = await request.json();
-	console.log('🚀 ~ POST ~ email:', email);
-	return json({ success: true });
+  const { email }: { email: string } = await request.json();
+  console.log("🚀 ~ POST ~ email:", email);
+  return json({ success: true });
 }
 ```
 
@@ -149,24 +150,24 @@ export async function POST({ request }) {
 Need full control? Override specific parts of the OpenAPI spec manually.
 
 ```ts
-import { json } from '@sveltejs/kit';
-import z from 'zod';
+import { json } from "@sveltejs/kit";
+import z from "zod";
 
 export const _config = {
-	// Add manual OpenAPI documentation overrides and standard schema definitions
-	openapiOverride: {
-		POST: {
-			summary: 'Legacy Endpoint',
-			description: 'Manually documented endpoint.'
-		}
-	}
+  // Add manual OpenAPI documentation overrides and standard schema definitions
+  openapiOverride: {
+    POST: {
+      summary: "Legacy Endpoint",
+      description: "Manually documented endpoint.",
+    },
+  },
 };
 
 export async function POST({ request }) {
-	// The schema is automatically generated from the type
-	const { email }: { email: string } = await request.json();
-	console.log('🚀 ~ POST ~ email:', email);
-	return json({ success: true });
+  // The schema is automatically generated from the type
+  const { email }: { email: string } = await request.json();
+  console.log("🚀 ~ POST ~ email:", email);
+  return json({ success: true });
 }
 ```
 
@@ -185,6 +186,7 @@ DEBUG_OPENAPI=true npm run dev
 ```
 
 This will show:
+
 - Which route files are being processed
 - SSR module loading status
 - Found `_config` objects and their methods
@@ -192,6 +194,7 @@ This will show:
 - Virtual module invalidation events
 
 Example output:
+
 ```
 Accessing SSR module: src/routes/users/+server.ts
   ✓ Found _config in src/routes/users/+server.ts
@@ -206,6 +209,12 @@ Accessing SSR module: src/routes/users/+server.ts
       - responses: 200, 401
       - requestBody: no
 ```
+
+## Roadmap
+
+[] Make sure \_config gets detected after build
+[] Allow openapi to have standard schema (and zod for more options)
+[] Add openapi validation and remove the external standard schema
 
 ## 📄 License
 
