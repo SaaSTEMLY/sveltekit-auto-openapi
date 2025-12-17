@@ -1,10 +1,10 @@
 import { error, json, type RequestHandler } from "@sveltejs/kit";
-import type { ScalarApiReference } from "@scalar/sveltekit";
 import type { OpenAPIV3 } from "openapi-types";
 import { defu } from "defu";
 import type { ZodType } from "zod";
 import openApiSchemaPaths from "sveltekit-auto-openapi/schema-paths";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
+import { ScalarApiReference } from "./scalar-api-reference.ts";
 
 type Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 type HttpStatusCodeStart = "1" | "2" | "3" | "4" | "5";
@@ -262,7 +262,6 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
             (request.route.id?.replace("/[slug]", "") ?? "") + "/";
 
           // Dynamic import to avoid SSR issues with @scalar/sveltekit's export conditions
-          const { ScalarApiReference } = await import("@scalar/sveltekit");
           const render = ScalarApiReference({
             url: routeBasePath + openApiPath,
             ...scalarOpts,
