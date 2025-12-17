@@ -23,7 +23,6 @@
 
 - ✅ **Fixed**: `_config` exports (Zod schemas and OpenAPI overrides) are now correctly detected in production builds
 - ✅ **Fixed**: Virtual module imports now follow Vite best practices with `virtual:` prefix
-- ✅ **Backwards Compatible**: Legacy import paths still work with deprecation warnings
 
 Production builds now generate complete OpenAPI schemas with full validation support, not just TypeScript AST inference.
 
@@ -269,27 +268,11 @@ Read the full documentation at **[your-docs-site.com](https://www.google.com/sea
 For advanced users who need direct access to generated schemas, virtual modules are available:
 
 ```ts
-// Recommended: Using virtual: prefix (Vite best practice)
 import openApiPaths from "virtual:sveltekit-auto-openapi/schema-paths";
 import validationRegistry from "virtual:sveltekit-auto-openapi/schema-validation-map";
-
-// Legacy: Still works but deprecated (shows warning)
-import openApiPaths from "sveltekit-auto-openapi/schema-paths";
-import validationRegistry from "sveltekit-auto-openapi/schema-validation-map";
 ```
 
 > **Note**: Most users don't need to import these directly - they're used internally by `ScalarModule` and `SchemaValidationHook`.
-
-### Deprecation Warnings
-
-If you see deprecation warnings like:
-
-```
-[sveltekit-auto-openapi] Deprecation warning: Import path 'sveltekit-auto-openapi/schema-paths' is deprecated.
-Please use 'virtual:sveltekit-auto-openapi/schema-paths' instead.
-```
-
-Update your imports to use the `virtual:` prefix. The legacy paths will be removed in v1.0.0.
 
 ### Production Builds
 

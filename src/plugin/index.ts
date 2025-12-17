@@ -11,15 +11,12 @@ function debug(...args: any[]) {
   }
 }
 
-// Schema Paths Module - Virtual module IDs following Vite best practices
+// Virtual module IDs following Vite best practices
 const SCHEMA_PATHS_MODULE_ID = "virtual:sveltekit-auto-openapi/schema-paths";
-const SCHEMA_PATHS_LEGACY_ID = "sveltekit-auto-openapi/schema-paths"; // Backwards compat (deprecated)
 const RESOLVED_SCHEMA_PATHS_ID = "\0" + SCHEMA_PATHS_MODULE_ID;
 
-// Validation Map Module - Virtual module IDs following Vite best practices
 const VALIDATION_MAP_MODULE_ID =
   "virtual:sveltekit-auto-openapi/schema-validation-map";
-const VALIDATION_MAP_LEGACY_ID = "sveltekit-auto-openapi/schema-validation-map"; // Backwards compat (deprecated)
 const RESOLVED_VALIDATION_MAP_ID = "\0" + VALIDATION_MAP_MODULE_ID;
 
 export default function svelteOpenApi() {
@@ -66,29 +63,10 @@ export default function svelteOpenApi() {
 
     // Resolve virtual module
     resolveId(id) {
-      // Schema Paths Module
       if (id === SCHEMA_PATHS_MODULE_ID) {
         return RESOLVED_SCHEMA_PATHS_ID;
       }
-      if (id === SCHEMA_PATHS_LEGACY_ID) {
-        console.warn(
-          `[sveltekit-auto-openapi] Deprecation warning: Import path '${SCHEMA_PATHS_LEGACY_ID}' is deprecated. ` +
-            `Please use '${SCHEMA_PATHS_MODULE_ID}' instead. ` +
-            `The legacy path will be removed in v1.0.0.`
-        );
-        return RESOLVED_SCHEMA_PATHS_ID;
-      }
-
-      // Validation Map Module
       if (id === VALIDATION_MAP_MODULE_ID) {
-        return RESOLVED_VALIDATION_MAP_ID;
-      }
-      if (id === VALIDATION_MAP_LEGACY_ID) {
-        console.warn(
-          `[sveltekit-auto-openapi] Deprecation warning: Import path '${VALIDATION_MAP_LEGACY_ID}' is deprecated. ` +
-            `Please use '${VALIDATION_MAP_MODULE_ID}' instead. ` +
-            `The legacy path will be removed in v1.0.0.`
-        );
         return RESOLVED_VALIDATION_MAP_ID;
       }
     },

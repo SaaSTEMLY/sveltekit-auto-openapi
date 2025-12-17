@@ -469,60 +469,6 @@ responses: {
 }
 ```
 
-## Migration from Old API
-
-If you were using the old `standardSchema` approach, here's how to migrate:
-
-### Before (Old API)
-
-```ts
-export const _config = {
-  standardSchema: {
-    POST: {
-      input: {
-        body: z.object({ email: z.string() }),
-        headers: z.object({ "x-api-key": z.string() }),
-      },
-      output: {
-        "200": {
-          body: z.object({ success: z.boolean() }),
-        },
-      },
-    },
-  },
-};
-```
-
-### After (New API)
-
-```ts
-export const _config = {
-  openapiOverride: {
-    POST: {
-      $headers: {
-        schema: z.object({ "x-api-key": z.string() }),
-      },
-      requestBody: {
-        content: {
-          "application/json": {
-            schema: z.object({ email: z.string() }),
-          },
-        },
-      },
-      responses: {
-        "200": {
-          content: {
-            "application/json": {
-              schema: z.object({ success: z.boolean() }),
-            },
-          },
-        },
-      },
-    },
-  },
-};
-```
-
 ## Troubleshooting
 
 ### Validation Not Working

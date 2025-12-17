@@ -176,7 +176,6 @@ function customDeepMerge(target: any, source: any): any {
   return result;
 }
 
-
 /** Helper: Map HTTP status codes to standard descriptions
  * Defaults to "Success" if unknown
  */
@@ -199,7 +198,7 @@ export function getStatusDescription(statusCode: string): string {
  * Detects Zod schemas by checking for _def property and parse method
  */
 export function isZodSchema(input: any): boolean {
-  return input?._def && typeof input.parse === 'function';
+  return input?._def && typeof input.parse === "function";
 }
 
 /** Helper: Extract JSON Schema from input
@@ -211,7 +210,7 @@ export function extractJsonSchema(input: any): any {
   // Check if it's a Zod schema
   if (isZodSchema(input)) {
     // Convert Zod schema to JSON Schema using zodToJsonSchema
-    return zodToJsonSchema(input, { target: 'openApi3' });
+    return zodToJsonSchema(input, { target: "openApi3" });
   }
 
   // Otherwise assume it's already JSON Schema
@@ -474,17 +473,16 @@ export function deduplicateArraysInOperation(obj: any): any {
  * - Scenario A is merged with customDeepMerge (allows null deletion and array override)
  */
 export function createCustomMerger(
-  scenarioA: any,
-  scenarioB: any,
-  scenarioC: any,
+  openapiOverrideSchema: any,
+  openapiASTSchema: any,
   baseOperation: any
 ) {
   // First, merge B and C with base using defu (smart merge)
   // defu(object, ...defaults) - first arg has highest priority
-  let result = defu(scenarioB, scenarioC, baseOperation);
+  let result = defu(openapiASTSchema, baseOperation);
 
   // Then apply Scenario A with custom deep merge (override semantics)
-  result = customDeepMerge(result, scenarioA);
+  result = customDeepMerge(result, openapiOverrideSchema);
 
   return result;
 }

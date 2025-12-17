@@ -15,13 +15,6 @@
       ],
       "virtual:sveltekit-auto-openapi/schema-paths": [
         "./src/virtual/schema-paths.d.ts"
-      ],
-      // Backwards compatibility (deprecated)
-      "sveltekit-auto-openapi/schema-validation-map": [
-        "./src/virtual/schema-validation-map.d.ts"
-      ],
-      "sveltekit-auto-openapi/schema-paths": [
-        "./src/virtual/schema-paths.d.ts"
       ]
     },
     // Environment setup & latest features

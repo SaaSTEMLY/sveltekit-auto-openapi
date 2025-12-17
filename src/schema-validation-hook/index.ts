@@ -413,5 +413,5 @@ async function validateOutput(
 // Named export for better discoverability
 export const createSchemaValidationHook = SchemaValidationHook;
 
-// Default export for backwards compatibility
+// Default export
 export default SchemaValidationHook;

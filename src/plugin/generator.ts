@@ -29,7 +29,9 @@ function debug(...args: any[]) {
 export async function generate(server: ViteDevServer | null, rootDir: string) {
   // Prevent re-entry from circular imports during SSR loading
   if (_isGenerating) {
-    debug("⚠️ Skipping re-entrant generate call (circular dependency detected)");
+    debug(
+      "⚠️ Skipping re-entrant generate call (circular dependency detected)"
+    );
     return { openApiPaths: {}, validationMap: {} };
   }
 
@@ -112,8 +114,10 @@ function extractValidationConfig(operation: any): {
 
   // Extract body validation from requestBody
   if (operation.requestBody?.content) {
-    for (const [contentType, mediaType] of Object.entries(operation.requestBody.content)) {
-      if (contentType === 'application/json' && (mediaType as any).schema) {
+    for (const [contentType, mediaType] of Object.entries(
+      operation.requestBody.content
+    )) {
+      if (contentType === "application/json" && (mediaType as any).schema) {
         input.body = {
           schema: extractJsonSchema((mediaType as any).schema),
           showErrorMessage: (mediaType as any).$showErrorMessage,
@@ -131,8 +135,8 @@ function extractValidationConfig(operation: any): {
       output[statusCode] = {};
 
       // Extract response body validation
-      if (resp.content?.['application/json']) {
-        const jsonContent = resp.content['application/json'];
+      if (resp.content?.["application/json"]) {
+        const jsonContent = resp.content["application/json"];
         if (jsonContent.schema) {
           output[statusCode].body = {
             schema: extractJsonSchema(jsonContent.schema),
@@ -246,7 +250,7 @@ async function _generateInternal(
   const files = glob.sync("src/routes/**/+server.ts", {
     cwd: rootDir,
     absolute: false,
-    nodir: true
+    nodir: true,
   });
 
   for (const file of files) {
@@ -269,107 +273,109 @@ async function _generateInternal(
       // Detect exported HTTP methods
       const exportedMethods = sourceFile.getExportedDeclarations();
 
-    // --- LOAD RUNTIME CONFIG (Scenario A & B) ---
-    // Use universal loader that works in both dev and production
-    let runtimeConfig: RouteConfig = {};
+      // --- LOAD RUNTIME CONFIG (Scenario A & B) ---
+      // Use universal loader that works in both dev and production
+      let runtimeConfig: RouteConfig = {};
 
-    const config = await loadModuleConfig(absPath, server, rootDir);
-    if (config) {
-      runtimeConfig = config;
-      debug(`  ✓ Found _config in ${file}`);
+      const config = await loadModuleConfig(absPath, server, rootDir);
+      if (config) {
+        runtimeConfig = config;
+        debug(`  ✓ Found _config in ${file}`);
 
-      if (DEBUG) {
-        if (runtimeConfig.openapiOverride) {
-          debug("    - openapiOverride methods:", Object.keys(runtimeConfig.openapiOverride));
+        if (DEBUG) {
+          if (runtimeConfig.openapiOverride) {
+            debug(
+              "    - openapiOverride methods:",
+              Object.keys(runtimeConfig.openapiOverride)
+            );
+          }
         }
-      }
-    } else {
-      debug(`  ℹ No _config found in ${file}, using AST inference only`);
-    }
-
-    // Iterate over standard HTTP methods
-    ["GET", "POST", "PUT", "DELETE", "PATCH"].forEach((method) => {
-      const methodKey = method.toLowerCase();
-      const methodKeyUpper = method; // Keep uppercase for runtime config lookups
-
-      // Check if method is actually implemented (exported)
-      const isImplemented = exportedMethods.has(method);
-
-      // Check if method has config defined (openapiOverride)
-      // @ts-expect-error -- Dynamic method key access on PathItemObject mapped type
-      const hasConfig = !!runtimeConfig.openapiOverride?.[methodKeyUpper];
-
-      // Skip if method is not implemented AND has no config
-      if (!isImplemented && !hasConfig) return;
-
-      // Initialize base operation with defaults (lowest priority)
-      const baseOperation: any = {
-        tags: ["Default"],
-        parameters: pathParams.length > 0 ? [...pathParams] : [],
-      };
-
-      // Priority order: A > C (Manual Override > AST Inference)
-      // Note: Runtime configs use uppercase keys (GET, POST), OpenAPI paths use lowercase
-
-      // --- Build Scenario C: TypeScript AST Inference (Lowest Priority - Fallback) ---
-      const scenarioC: any = {};
-      const inferred = inferFromAst(sourceFile, method);
-
-      if (inferred.input) {
-        scenarioC.requestBody = {
-          content: { "application/json": { schema: inferred.input } },
-        };
+      } else {
+        debug(`  ℹ No _config found in ${file}, using AST inference only`);
       }
 
-      if (inferred.responses) {
-        scenarioC.responses = inferred.responses;
-      }
+      // Iterate over standard HTTP methods
+      ["GET", "POST", "PUT", "DELETE", "PATCH"].forEach((method) => {
+        const methodKey = method.toLowerCase();
+        const methodKeyUpper = method; // Keep uppercase for runtime config lookups
 
-      // --- Process openapiOverride: Extract Validation & Clean for Docs ---
-      let scenarioA: any = {};
+        // Check if method is actually implemented (exported)
+        const isImplemented = exportedMethods.has(method);
 
-      // @ts-expect-error -- Dynamic method key access on PathItemObject mapped type
-      const openapiConfig = runtimeConfig.openapiOverride?.[methodKeyUpper];
+        // Check if method has config defined (openapiOverride)
+        // @ts-expect-error -- Dynamic method key access on PathItemObject mapped type
+        const hasConfig = !!runtimeConfig.openapiOverride?.[methodKeyUpper];
 
-      if (openapiConfig) {
-        // Extract validation configuration from openapiOverride
-        const validationConfig = extractValidationConfig(openapiConfig);
+        // Skip if method is not implemented AND has no config
+        if (!isImplemented && !hasConfig) return;
 
-        // Initialize route entry in validationMap if not exists
-        if (!validationMap[routePath]) {
-          validationMap[routePath] = {};
-        }
-
-        // Store validation config in validationMap
-        validationMap[routePath][methodKeyUpper] = {
-          modulePath: file,
-          hasInput: !!validationConfig.input,
-          hasOutput: !!validationConfig.output,
-          isImplemented,
-          input: validationConfig.input,
-          output: validationConfig.output,
+        // Initialize base operation with defaults (lowest priority)
+        const baseOperation: any = {
+          tags: ["Default"],
+          parameters: pathParams.length > 0 ? [...pathParams] : [],
         };
 
-        // Clean the operation for OpenAPI docs (remove validation flags and custom properties)
-        scenarioA = cleanOpenapiForDocs(openapiConfig);
-      }
+        // Priority order: A > C (Manual Override > AST Inference)
+        // Note: Runtime configs use uppercase keys (GET, POST), OpenAPI paths use lowercase
 
-      // Merge scenarios with custom merger (A > C > base priority, no more scenarioB)
-      // Custom merger handles:
-      // - Array replacement (not merging)
-      // - Null value deletion
-      let operation = createCustomMerger(
-        scenarioA,
-        {},  // No scenarioB anymore
-        scenarioC,
-        baseOperation
-      );
+        // --- Build Scenario C: TypeScript AST Inference (Lowest Priority - Fallback) ---
+        const openapiASTSchema: any = {};
+        const inferred = inferFromAst(sourceFile, method);
 
-      // Clean up: remove null values and deduplicate arrays
-      operation = deduplicateArraysInOperation(operation);
+        if (inferred.input) {
+          openapiASTSchema.requestBody = {
+            content: { "application/json": { schema: inferred.input } },
+          };
+        }
 
-      openApiPaths[routePath][methodKey] = operation;
-    });
+        if (inferred.responses) {
+          openapiASTSchema.responses = inferred.responses;
+        }
+
+        // --- Process openapiOverride: Extract Validation & Clean for Docs ---
+        let openapiOverrideSchema: any = {};
+
+        // @ts-expect-error -- Dynamic method key access on PathItemObject mapped type
+        const openapiConfig = runtimeConfig.openapiOverride?.[methodKeyUpper];
+
+        if (openapiConfig) {
+          // Extract validation configuration from openapiOverride
+          const validationConfig = extractValidationConfig(openapiConfig);
+
+          // Initialize route entry in validationMap if not exists
+          if (!validationMap[routePath]) {
+            validationMap[routePath] = {};
+          }
+
+          // Store validation config in validationMap
+          validationMap[routePath][methodKeyUpper] = {
+            modulePath: file,
+            hasInput: !!validationConfig.input,
+            hasOutput: !!validationConfig.output,
+            isImplemented,
+            input: validationConfig.input,
+            output: validationConfig.output,
+          };
+
+          // Clean the operation for OpenAPI docs (remove validation flags and custom properties)
+          openapiOverrideSchema = cleanOpenapiForDocs(openapiConfig);
+        }
+
+        // Merge scenarios with custom merger (A > C > base priority, no more scenarioB)
+        // Custom merger handles:
+        // - Array replacement (not merging)
+        // - Null value deletion
+        let operation = createCustomMerger(
+          openapiOverrideSchema,
+          openapiASTSchema,
+          baseOperation
+        );
+
+        // Clean up: remove null values and deduplicate arrays
+        operation = deduplicateArraysInOperation(operation);
+
+        openApiPaths[routePath][methodKey] = operation;
+      });
     } catch (error) {
       console.error(`[OpenAPI] Error processing route file ${file}:`, error);
       // Continue processing other files even if one fails

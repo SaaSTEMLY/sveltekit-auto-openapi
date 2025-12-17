@@ -55,9 +55,3 @@ declare module "virtual:sveltekit-auto-openapi/schema-validation-map" {
     MethodValidationConfig,
   };
 }
-
-// Backwards compatibility (deprecated - will be removed in v1.0.0)
-declare module "sveltekit-auto-openapi/schema-validation-map" {
-  export * from "virtual:sveltekit-auto-openapi/schema-validation-map";
-  export { default } from "virtual:sveltekit-auto-openapi/schema-validation-map";
-}
