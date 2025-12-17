@@ -37,6 +37,11 @@ pnpm install sveltekit-auto-openapi
 bun install sveltekit-auto-openapi
 ```
 
+**For Scalar API documentation** (optional):
+```bash
+npm install @scalar/sveltekit
+```
+
 ### 2\. Add Vite Plugin
 
 Add the plugin to `vite.config.ts` to enable schema generation.
@@ -64,6 +69,8 @@ export const handle = sequence(SchemaValidationHook());
 ### 4\. Create API Docs Route
 
 Expose your documentation at `src/routes/api-docs/[slug]/+server.ts`.
+
+> **Note:** This requires installing `@scalar/sveltekit` (see step 1).
 
 ```ts
 import ScalarModule from "sveltekit-auto-openapi/scalar-module";
