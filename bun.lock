@@ -21,7 +21,11 @@
       },
       "peerDependencies": {
         "typescript": "^5",
+        "zod": "^3",
       },
+      "optionalPeers": [
+        "zod",
+      ],
     },
   },
   "packages": {

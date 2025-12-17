@@ -52,12 +52,6 @@ pnpm install sveltekit-auto-openapi
 bun install sveltekit-auto-openapi
 ```
 
-**For Scalar API documentation** (optional):
-
-```bash
-npm install @scalar/sveltekit
-```
-
 ### 2\. Add Vite Plugin
 
 Add the plugin to `vite.config.ts` to enable schema generation.
@@ -96,14 +90,12 @@ Expose your documentation at `src/routes/api-docs/[slug]/+server.ts`.
 ```ts
 import ScalarModule from "sveltekit-auto-openapi/scalar-module";
 
-const scalar = ScalarModule({
+export const { GET, _config } = ScalarModule({
   openApiOpts: {
     openapi: "3.0.0",
     info: { title: "My App API", version: "1.0.0" },
   },
 });
-
-export const { GET } = scalar;
 ```
 
 ### 5\. Visit docs
@@ -148,7 +140,7 @@ export const _config = {
       $headers: {
         $showErrorMessage: true,
         $skipValidation: false,
-        schema: z.object({ "x-api-key": z.string() }),
+        schema: z.object({ "x-api-key": z.string() }).toJSONSchema(),
       },
 
       // Validate request body (standard OpenAPI structure)
@@ -157,7 +149,7 @@ export const _config = {
           "application/json": {
             $showErrorMessage: true,
             $skipValidation: false,
-            schema: z.object({ email: z.string().email() }),
+            schema: z.object({ email: z.email() }).toJSONSchema(),
           },
         },
       },
@@ -169,7 +161,7 @@ export const _config = {
           content: {
             "application/json": {
               $showErrorMessage: true,
-              schema: z.object({ success: z.boolean() }),
+              schema: z.object({ success: z.boolean() }).toJSONSchema(),
             },
           },
         },
@@ -210,50 +202,76 @@ import { json } from "@sveltejs/kit";
 export const _config = {
   openapiOverride: {
     POST: {
-      summary: "Create user",
-      description: "Creates a new user with email validation",
+      post: {
+        tags: ["Default"],
 
-      requestBody: {
-        content: {
-          "application/json": {
-            $showErrorMessage: true,
+        // this does not get validated, use $headers/$pathParameters/$query/$cookies to enable validation
+        parameters: [
+          {
+            name: "x-api-key",
+            in: "header",
+            required: true,
             schema: {
-              type: "object",
-              properties: {
-                email: { type: "string", format: "email" },
-                age: { type: "integer", minimum: 18 },
-              },
-              required: ["email", "age"],
+              type: "string",
             },
           },
-        },
-      },
-
-      responses: {
-        "200": {
-          description: "User created successfully",
+        ],
+        requestBody: {
           content: {
             "application/json": {
+              $showErrorMessage: true,
+              $skipValidation: false,
               schema: {
                 type: "object",
                 properties: {
-                  success: { type: "boolean" },
-                  userId: { type: "string", format: "uuid" },
+                  email: {
+                    type: "string",
+                    format: "email",
+                    pattern:
+                      "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                  },
                 },
-                required: ["success", "userId"],
+                required: ["email"],
+                additionalProperties: false,
+                $schema: "https://json-schema.org/draft/2020-12/schema",
               },
             },
           },
         },
+        responses: {
+          "200": {
+            description: "Success",
+            content: {
+              "application/json": {
+                $showErrorMessage: true,
+                $skipValidation: false,
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: {
+                      type: "boolean",
+                    },
+                  },
+                  required: ["success"],
+                  additionalProperties: false,
+                  $schema: "https://json-schema.org/draft/2020-12/schema",
+                },
+              },
+            },
+          },
+        },
+        summary: "Create user",
+        description: "Creates a new user with email",
       },
     },
   },
 };
 
 export async function POST({ request }) {
-  const { email, age } = await request.json(); // Already validated!
-  console.log("🚀 ~ POST ~ email:", email, "age:", age);
-  return json({ success: true, userId: crypto.randomUUID() });
+  // Request is already validated by the hook!
+  const { email }: { email: string } = await request.json();
+  console.log("🚀 ~ POST ~ email:", email);
+  return json({ success: true });
 }
 ```
 
@@ -290,9 +308,7 @@ The plugin converts Zod schemas to JSON Schema during the build phase, then uses
 Enable detailed logging during development by setting the `DEBUG_OPENAPI` environment variable:
 
 ```bash
-DEBUG_OPENAPI=true bun dev
-# or
-DEBUG_OPENAPI=true npm run dev
+DEBUG_OPENAPI=true
 ```
 
 This will show:

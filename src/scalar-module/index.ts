@@ -3,6 +3,8 @@ import type { OpenAPIV3 } from "openapi-types";
 import { defu } from "defu";
 import openApiSchemaPaths from "virtual:sveltekit-auto-openapi/schema-paths";
 import { ScalarApiReference } from "./scalar-api-reference.ts";
+import { OpenAPIObject, OpenAPISchema } from "./openapiValidationSchema.ts";
+import z from "zod";
 
 type Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 type HttpStatusCodeStart = "1" | "2" | "3" | "4" | "5";
@@ -30,10 +32,14 @@ export type MediaTypeWithValidation = OpenAPIV3.MediaTypeObject & {
 };
 
 // Extend OpenAPI HeaderObject to include validation config
-export type HeaderWithValidation = OpenAPIV3.HeaderObject & ValidationSchemaConfig;
+export type HeaderWithValidation = OpenAPIV3.HeaderObject &
+  ValidationSchemaConfig;
 
 // Extend OpenAPI ResponseObject to support validation in content and headers
-export type ResponseObjectWithValidation = Omit<OpenAPIV3.ResponseObject, 'content' | 'headers'> & {
+export type ResponseObjectWithValidation = Omit<
+  OpenAPIV3.ResponseObject,
+  "content" | "headers"
+> & {
   content?: Record<string, MediaTypeWithValidation>;
   headers?: Record<string, HeaderWithValidation>;
 };
@@ -80,6 +86,16 @@ interface ScalarModuleOptions {
    * @default "openapi.json"
    */
   openApiPath?: string;
+  /**
+   * @description If true, includes detailed docs schema in the response (bloat).
+   * @default false
+   */
+  showDetailedDocsSchema?: boolean;
+  /**
+   * @description If showDetailedDocsSchema is true, set skipDocsValidation to true ti skips validation of the OpenAPI schema at runtime.
+   * @default false
+   */
+  skipDocsValidation?: boolean;
   /**
    * @description Options for generating the OpenAPI schema.
    * @default {}
@@ -142,6 +158,8 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
   const defaults = {
     disableOpenApi: false,
     openApiPath: "openapi.json",
+    showDetailedDocsSchema: false,
+    skipDocsValidation: false,
     openApiOpts: {
       openapi: "3.0.0",
       info: {
@@ -156,6 +174,10 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
     scalarOpts: {},
   } satisfies typeof opts;
   const openApiPath = opts?.openApiPath ?? defaults.openApiPath;
+  const showDetailedDocsSchema =
+    opts?.showDetailedDocsSchema ?? defaults.showDetailedDocsSchema;
+  const skipDocsValidation =
+    opts?.skipDocsValidation ?? defaults.skipDocsValidation;
   const openApiOpts = opts?.openApiOpts ?? defaults.openApiOpts;
   const overridePaths = opts?.overridePaths ?? defaults.overridePaths;
   const scalarDocPath = opts?.scalarDocPath ?? defaults.scalarDocPath;
@@ -164,75 +186,28 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
     _config: {
       openapiOverride: {
         GET: {
-          parameters: [],
+          $pathParams: {
+            $skipValidation: skipDocsValidation,
+            schema: z.object({
+              slug: z
+                .union([z.literal(openApiPath), z.literal(scalarDocPath)])
+                .toJSONSchema(),
+            }),
+          },
           responses: {
             200: {
               description: "OpenAPI Schema",
               content: {
                 "application/json": {
-                  schema: {
-                    type: "object",
-                    properties: {
-                      openapi: {
-                        type: "string",
-                      },
-                      info: {
-                        type: "object",
-                        properties: {
-                          title: {
-                            type: "string",
-                          },
-                          description: {
-                            type: "object",
-                          },
-                          termsOfService: {
-                            type: "object",
-                          },
-                          contact: {
-                            type: "object",
-                          },
-                          license: {
-                            type: "object",
-                          },
-                          version: {
-                            type: "string",
-                          },
-                        },
-                        required: ["title", "version"],
-                        additionalProperties: false,
-                      },
-                      servers: {
-                        type: "object",
-                      },
-                      paths: {
-                        type: "object",
-                        properties: {},
-                        additionalProperties: false,
-                      },
-                      components: {
-                        type: "object",
-                      },
-                      security: {
-                        type: "object",
-                      },
-                      tags: {
-                        type: "object",
-                      },
-                      externalDocs: {
-                        type: "object",
-                      },
-                      "x-express-openapi-additional-middleware": {
-                        type: "object",
-                      },
-                      "x-express-openapi-validation-strict": {
-                        type: "object",
-                      },
-                    },
-                    required: ["openapi", "info", "paths"],
-                    additionalProperties: false,
-                  },
+                  $skipValidation: skipDocsValidation,
+                  schema: showDetailedDocsSchema
+                    ? (OpenAPISchema.toJSONSchema() as unknown as OpenAPIObject)
+                    : (z
+                        .looseObject({})
+                        .toJSONSchema() as unknown as OpenAPIObject),
                 },
                 "text/html": {
+                  $skipValidation: skipDocsValidation,
                   schema: {
                     type: "string",
                     format: "html",
