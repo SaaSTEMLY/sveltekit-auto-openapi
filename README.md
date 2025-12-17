@@ -108,7 +108,6 @@ export async function POST({ request }) {
 	console.log('🚀 ~ POST ~ email:', email);
 	return json({ success: true });
 }
-
 ```
 
 ### Level 2: Strict (Zod Validation)
@@ -116,21 +115,33 @@ export async function POST({ request }) {
 Export a `_config` object to enforce runtime validation and detailed docs.
 
 ```ts
-import { z } from "zod";
+import { json } from '@sveltejs/kit';
+import z from 'zod';
 
 export const _config = {
-  standardSchema: {
-    POST: {
-      input: {
-        body: z.object({ email: z.string().email() }),
-        headers: z.object({ "x-api-key": z.string() }),
-      },
-      output: {
-        "200": { body: z.object({ token: z.string() }) },
-      },
-    },
-  },
+	// Define standard schema for automatic validation and documentation
+	standardSchema: {
+		POST: {
+			input: {
+				body: z.object({ email: z.email() }),
+				headers: z.object({ 'x-api-key': z.string() })
+			},
+			output: {
+				'200': {
+					body: z.object({
+						success: z.boolean()
+					})
+				}
+			}
+		}
+	}
 };
+
+export async function POST({ request }) {
+	const { email }: { email: string } = await request.json();
+	console.log('🚀 ~ POST ~ email:', email);
+	return json({ success: true });
+}
 ```
 
 ### Level 3: Manual (OpenAPI Override)
@@ -138,14 +149,25 @@ export const _config = {
 Need full control? Override specific parts of the OpenAPI spec manually.
 
 ```ts
+import { json } from '@sveltejs/kit';
+import z from 'zod';
+
 export const _config = {
-  openapiOverride: {
-    GET: {
-      summary: "Legacy Endpoint",
-      description: "Manually documented endpoint.",
-    },
-  },
+	// Add manual OpenAPI documentation overrides and standard schema definitions
+	openapiOverride: {
+		POST: {
+			summary: 'Legacy Endpoint',
+			description: 'Manually documented endpoint.'
+		}
+	}
 };
+
+export async function POST({ request }) {
+	// The schema is automatically generated from the type
+	const { email }: { email: string } = await request.json();
+	console.log('🚀 ~ POST ~ email:', email);
+	return json({ success: true });
+}
 ```
 
 ## 📚 Documentation
