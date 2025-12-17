@@ -34,6 +34,19 @@ export default function svelteOpenApi(): Plugin {
     name: "sveltekit-auto-openapi",
     enforce: "pre",
 
+    config() {
+      return {
+        optimizeDeps: {
+          // Prevent Vite from pre-bundling this package so the plugin hooks can run
+          exclude: ["sveltekit-auto-openapi"],
+        },
+        ssr: {
+          // Prevent Vite from externalizing this package in SSR so the plugin hooks can run
+          noExternal: ["sveltekit-auto-openapi"],
+        },
+      };
+    },
+
     configResolved(config) {
       root = config.root;
     },
