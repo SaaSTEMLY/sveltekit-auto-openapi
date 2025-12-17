@@ -1,5 +1,5 @@
 import { error, json, type RequestHandler } from "@sveltejs/kit";
-import { ScalarApiReference } from "@scalar/sveltekit";
+import type { ScalarApiReference } from "@scalar/sveltekit";
 import type { OpenAPIV3 } from "openapi-types";
 import { defu } from "defu";
 import type { ZodType } from "zod";
@@ -260,6 +260,9 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
           }
           const routeBasePath =
             (request.route.id?.replace("/[slug]", "") ?? "") + "/";
+
+          // Dynamic import to avoid SSR issues with @scalar/sveltekit's export conditions
+          const { ScalarApiReference } = await import("@scalar/sveltekit");
           const render = ScalarApiReference({
             url: routeBasePath + openApiPath,
             ...scalarOpts,
