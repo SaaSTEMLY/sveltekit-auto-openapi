@@ -34,6 +34,17 @@ export default function svelteOpenApi(): Plugin {
     name: "sveltekit-auto-openapi",
     enforce: "pre",
 
+    config() {
+      return {
+        ssr: {
+          resolve: {
+            conditions: ["svelte"],
+            externalConditions: ["svelte"],
+          },
+        },
+      };
+    },
+
     configResolved(config) {
       root = config.root;
     },
