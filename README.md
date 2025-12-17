@@ -11,6 +11,11 @@
   Write standard SvelteKit code, get documented APIs for free.
 </p>
 
+> [!WARNING] > **🚧 v0 - Experimental**
+> This plugin is in early development (v0) and **not recommended for production use**. APIs will most probably change, and there may be undiscovered bugs. Use at your own risk.
+>
+> **Contributions are welcome!** If you'd like to help improve this project, please feel free to open issues or submit pull requests.
+
 ---
 
 ## ⚡ Features
@@ -210,11 +215,13 @@ Accessing SSR module: src/routes/users/+server.ts
       - requestBody: no
 ```
 
-## Roadmap
+## Roadmap for version 0
 
 [] Make sure \_config gets detected after build
 [] Allow openapi to have standard schema (and zod for more options)
 [] Add openapi validation and remove the external standard schema
+[] Explore edge cases and find errors
+[] Optimize vite plugin
 
 ## 📄 License
 
