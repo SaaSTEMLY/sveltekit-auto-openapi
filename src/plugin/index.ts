@@ -1,5 +1,6 @@
-import type { Plugin, ViteDevServer } from "vite";
+import type { Plugin, PluginOption, ViteDevServer } from "vite";
 import { generate } from "./generator.ts";
+import { initBuildRuntime, closeBuildRuntime } from "./ssr-loader.ts";
 
 // Debug mode controlled by environment variable
 const DEBUG = process.env.DEBUG_OPENAPI === "true";
@@ -10,19 +11,18 @@ function debug(...args: any[]) {
   }
 }
 
-const PACKAGE_SCHEMA_MODULE_ID = "sveltekit-auto-openapi/schema-paths";
-// Virtual module IDs for user imports
-const VIRTUAL_SCHEMA_MODULE_ID = "virtual:" + PACKAGE_SCHEMA_MODULE_ID;
-const RESOLVED_VIRTUAL_SCHEMA_MODULE_ID = "\0" + VIRTUAL_SCHEMA_MODULE_ID;
+// Schema Paths Module - Virtual module IDs following Vite best practices
+const SCHEMA_PATHS_MODULE_ID = "virtual:sveltekit-auto-openapi/schema-paths";
+const SCHEMA_PATHS_LEGACY_ID = "sveltekit-auto-openapi/schema-paths"; // Backwards compat (deprecated)
+const RESOLVED_SCHEMA_PATHS_ID = "\0" + SCHEMA_PATHS_MODULE_ID;
 
-const PACKAGE_VALIDATION_MAP_MODULE_ID =
-  "sveltekit-auto-openapi/schema-validation-map";
-const VIRTUAL_VALIDATION_MAP_MODULE_ID =
-  "virtual:" + PACKAGE_VALIDATION_MAP_MODULE_ID;
-const RESOLVED_VIRTUAL_VALIDATION_MAP_MODULE_ID =
-  "\0" + VIRTUAL_VALIDATION_MAP_MODULE_ID;
+// Validation Map Module - Virtual module IDs following Vite best practices
+const VALIDATION_MAP_MODULE_ID =
+  "virtual:sveltekit-auto-openapi/schema-validation-map";
+const VALIDATION_MAP_LEGACY_ID = "sveltekit-auto-openapi/schema-validation-map"; // Backwards compat (deprecated)
+const RESOLVED_VALIDATION_MAP_ID = "\0" + VALIDATION_MAP_MODULE_ID;
 
-export default function svelteOpenApi(): Plugin {
+export default function svelteOpenApi() {
   let server: ViteDevServer | null = null;
   let root = process.cwd();
   let cachedSchema: any = null;
@@ -54,23 +54,50 @@ export default function svelteOpenApi(): Plugin {
       server = _server;
     },
 
+    async buildStart() {
+      // Initialize module runtime for production builds
+      if (!server) {
+        console.log(
+          "[sveltekit-auto-openapi] Initializing build-mode module runtime..."
+        );
+        await initBuildRuntime(root);
+      }
+    },
+
     // Resolve virtual module
     resolveId(id) {
-      if (id === VIRTUAL_SCHEMA_MODULE_ID || id === PACKAGE_SCHEMA_MODULE_ID) {
-        return RESOLVED_VIRTUAL_SCHEMA_MODULE_ID;
-      } else if (
-        id === VIRTUAL_VALIDATION_MAP_MODULE_ID ||
-        id === PACKAGE_VALIDATION_MAP_MODULE_ID
-      ) {
-        return RESOLVED_VIRTUAL_VALIDATION_MAP_MODULE_ID;
+      // Schema Paths Module
+      if (id === SCHEMA_PATHS_MODULE_ID) {
+        return RESOLVED_SCHEMA_PATHS_ID;
+      }
+      if (id === SCHEMA_PATHS_LEGACY_ID) {
+        console.warn(
+          `[sveltekit-auto-openapi] Deprecation warning: Import path '${SCHEMA_PATHS_LEGACY_ID}' is deprecated. ` +
+            `Please use '${SCHEMA_PATHS_MODULE_ID}' instead. ` +
+            `The legacy path will be removed in v1.0.0.`
+        );
+        return RESOLVED_SCHEMA_PATHS_ID;
+      }
+
+      // Validation Map Module
+      if (id === VALIDATION_MAP_MODULE_ID) {
+        return RESOLVED_VALIDATION_MAP_ID;
+      }
+      if (id === VALIDATION_MAP_LEGACY_ID) {
+        console.warn(
+          `[sveltekit-auto-openapi] Deprecation warning: Import path '${VALIDATION_MAP_LEGACY_ID}' is deprecated. ` +
+            `Please use '${VALIDATION_MAP_MODULE_ID}' instead. ` +
+            `The legacy path will be removed in v1.0.0.`
+        );
+        return RESOLVED_VALIDATION_MAP_ID;
       }
     },
 
     // Load virtual module
     async load(id) {
       if (
-        id === RESOLVED_VIRTUAL_SCHEMA_MODULE_ID ||
-        id === RESOLVED_VIRTUAL_VALIDATION_MAP_MODULE_ID
+        id === RESOLVED_SCHEMA_PATHS_ID ||
+        id === RESOLVED_VALIDATION_MAP_ID
       ) {
         // CRITICAL: If we're currently generating and a route file imports this virtual module
         // during SSR loading, we must return cached data or empty stub immediately to avoid deadlock
@@ -79,7 +106,7 @@ export default function svelteOpenApi(): Plugin {
             "⚠️ Virtual module requested during generation - returning stub to prevent deadlock"
           );
 
-          if (id === RESOLVED_VIRTUAL_SCHEMA_MODULE_ID) {
+          if (id === RESOLVED_SCHEMA_PATHS_ID) {
             return `export default ${JSON.stringify(
               cachedSchema || {},
               null,
@@ -117,7 +144,7 @@ export default function svelteOpenApi(): Plugin {
               // to reload and get the real data
               if (server) {
                 const schemaModule = server.moduleGraph.getModuleById(
-                  RESOLVED_VIRTUAL_SCHEMA_MODULE_ID
+                  RESOLVED_SCHEMA_PATHS_ID
                 );
                 if (schemaModule) {
                   server.moduleGraph.invalidateModule(schemaModule);
@@ -125,7 +152,7 @@ export default function svelteOpenApi(): Plugin {
                 }
 
                 const validationMapModule = server.moduleGraph.getModuleById(
-                  RESOLVED_VIRTUAL_VALIDATION_MAP_MODULE_ID
+                  RESOLVED_VALIDATION_MAP_ID
                 );
                 if (validationMapModule) {
                   server.moduleGraph.invalidateModule(validationMapModule);
@@ -147,7 +174,7 @@ export default function svelteOpenApi(): Plugin {
           }
         }
 
-        if (id === RESOLVED_VIRTUAL_SCHEMA_MODULE_ID) {
+        if (id === RESOLVED_SCHEMA_PATHS_ID) {
           try {
             // Use null instead of server to avoid circular dependencies during SSR
             return `export default ${JSON.stringify(
@@ -161,7 +188,7 @@ export default function svelteOpenApi(): Plugin {
           }
         }
 
-        if (id === RESOLVED_VIRTUAL_VALIDATION_MAP_MODULE_ID) {
+        if (id === RESOLVED_VALIDATION_MAP_ID) {
           try {
             // In dev mode, skip ssrLoadModule to avoid circular dependencies
             // Just get the structure without loading actual modules
@@ -274,6 +301,11 @@ export default function svelteOpenApi(): Plugin {
       }
     },
 
+    async buildEnd() {
+      // Cleanup module runtime after build
+      await closeBuildRuntime();
+    },
+
     // Production build hook - for logging/cleanup only
     // Virtual modules are automatically bundled by Vite/Rollup via resolveId + load hooks
     async closeBundle() {
@@ -305,14 +337,14 @@ export default function svelteOpenApi(): Plugin {
 
         // Invalidate the virtual module to trigger regeneration
         const schemaModule = server.moduleGraph.getModuleById(
-          RESOLVED_VIRTUAL_SCHEMA_MODULE_ID
+          RESOLVED_SCHEMA_PATHS_ID
         );
         if (schemaModule) {
           server.moduleGraph.invalidateModule(schemaModule);
         }
 
         const validationMapModule = server.moduleGraph.getModuleById(
-          RESOLVED_VIRTUAL_VALIDATION_MAP_MODULE_ID
+          RESOLVED_VALIDATION_MAP_ID
         );
         if (validationMapModule) {
           server.moduleGraph.invalidateModule(validationMapModule);
@@ -326,5 +358,5 @@ export default function svelteOpenApi(): Plugin {
         return [];
       }
     },
-  };
+  } as PluginOption;
 }

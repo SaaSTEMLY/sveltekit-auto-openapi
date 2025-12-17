@@ -29,8 +29,28 @@ export type ValidationRegistry = Record<
   Record<string, MethodValidationConfig | undefined>
 >;
 
-declare const validationRegistry: ValidationRegistry;
-export default validationRegistry;
+// Primary virtual module (Vite best practice)
+declare module "virtual:sveltekit-auto-openapi/schema-validation-map" {
+  import type {
+    ValidationRegistry,
+    InputValidationConfig,
+    OutputValidationConfig,
+    MethodValidationConfig,
+  } from "./schema-validation-map.d.ts";
 
-// Initialization promise for lazy-loaded modules
-export const initPromise: Promise<void> | undefined;
+  const validationRegistry: ValidationRegistry;
+  export const initPromise: Promise<void> | undefined;
+  export default validationRegistry;
+  export type {
+    ValidationRegistry,
+    InputValidationConfig,
+    OutputValidationConfig,
+    MethodValidationConfig,
+  };
+}
+
+// Backwards compatibility (deprecated - will be removed in v1.0.0)
+declare module "sveltekit-auto-openapi/schema-validation-map" {
+  export * from "virtual:sveltekit-auto-openapi/schema-validation-map";
+  export { default } from "virtual:sveltekit-auto-openapi/schema-validation-map";
+}

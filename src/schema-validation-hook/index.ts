@@ -8,7 +8,7 @@ import validationRegistry, {
   initPromise,
   type ValidationRegistry,
   type MethodValidationConfig,
-} from "sveltekit-auto-openapi/schema-validation-map";
+} from "virtual:sveltekit-auto-openapi/schema-validation-map";
 
 // Initialize the registry on module load
 let registryReady = false;

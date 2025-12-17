@@ -3,6 +3,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import type { ViteDevServer } from "vite";
 import * as path from "path";
 import { glob } from "glob";
+import { loadModuleConfig } from "./ssr-loader.ts";
 import {
   convertSchemaToParameters,
   createCustomMerger,
@@ -103,32 +104,24 @@ async function _generateInternal(
       const exportedMethods = sourceFile.getExportedDeclarations();
 
     // --- LOAD RUNTIME CONFIG (Scenario A & B) ---
+    // Use universal loader that works in both dev and production
     let runtimeConfig: RouteConfig = {};
-    if (server) {
-      try {
-        // Use Vite's SSR loader to execute the file and get the actual Zod objects
-        // This handles aliases ($lib) and environment variables gracefully
-        debug("Accessing SSR module:", file);
-        const moduleExports = await server.ssrLoadModule(absPath);
 
-        if (moduleExports._config) {
-          runtimeConfig = moduleExports._config;
-          debug(`  ✓ Found _config in ${file}`);
-          if (DEBUG) {
-            if (runtimeConfig.standardSchema) {
-              debug("    - standardSchema methods:", Object.keys(runtimeConfig.standardSchema));
-            }
-            if (runtimeConfig.openapiOverride) {
-              debug("    - openapiOverride methods:", Object.keys(runtimeConfig.openapiOverride));
-            }
-          }
+    const config = await loadModuleConfig(absPath, server, rootDir);
+    if (config) {
+      runtimeConfig = config;
+      debug(`  ✓ Found _config in ${file}`);
+
+      if (DEBUG) {
+        if (runtimeConfig.standardSchema) {
+          debug("    - standardSchema methods:", Object.keys(runtimeConfig.standardSchema));
         }
-      } catch (e) {
-        console.warn(
-          `[OpenAPI] Failed to load module ${file} for runtime analysis:`,
-          e
-        );
+        if (runtimeConfig.openapiOverride) {
+          debug("    - openapiOverride methods:", Object.keys(runtimeConfig.openapiOverride));
+        }
       }
+    } else {
+      debug(`  ℹ No _config found in ${file}, using AST inference only`);
     }
 
     // Iterate over standard HTTP methods

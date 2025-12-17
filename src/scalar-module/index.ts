@@ -2,7 +2,7 @@ import { error, json, type RequestHandler } from "@sveltejs/kit";
 import type { OpenAPIV3 } from "openapi-types";
 import { defu } from "defu";
 import type { ZodType } from "zod";
-import openApiSchemaPaths from "sveltekit-auto-openapi/schema-paths";
+import openApiSchemaPaths from "virtual:sveltekit-auto-openapi/schema-paths";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ScalarApiReference } from "./scalar-api-reference.ts";
 

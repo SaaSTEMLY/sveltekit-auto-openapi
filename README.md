@@ -11,10 +11,21 @@
   Write standard SvelteKit code, get documented APIs for free.
 </p>
 
-> [!WARNING] > **🚧 v0 - Experimental**
+> [!WARNING]
+> **🚧 v0 - Experimental**
+>
 > This plugin is in early development (v0) and **not recommended for production use**. APIs will most probably change, and there may be undiscovered bugs. Use at your own risk.
 >
 > **Contributions are welcome!** If you'd like to help improve this project, please feel free to open issues or submit pull requests.
+
+## 🆕 Recent Updates (v0.0.9)
+
+### Production Build Support
+- ✅ **Fixed**: `_config` exports (Zod schemas and OpenAPI overrides) are now correctly detected in production builds
+- ✅ **Fixed**: Virtual module imports now follow Vite best practices with `virtual:` prefix
+- ✅ **Backwards Compatible**: Legacy import paths still work with deprecation warnings
+
+Production builds now generate complete OpenAPI schemas with full validation support, not just TypeScript AST inference.
 
 ---
 
@@ -179,6 +190,45 @@ export async function POST({ request }) {
 ## 📚 Documentation
 
 Read the full documentation at **[your-docs-site.com](https://www.google.com/search?q=https://your-docs-site.com)**.
+
+## 🔧 Advanced Usage
+
+### Virtual Module Imports
+
+For advanced users who need direct access to generated schemas, virtual modules are available:
+
+```ts
+// Recommended: Using virtual: prefix (Vite best practice)
+import openApiPaths from "virtual:sveltekit-auto-openapi/schema-paths";
+import validationRegistry from "virtual:sveltekit-auto-openapi/schema-validation-map";
+
+// Legacy: Still works but deprecated (shows warning)
+import openApiPaths from "sveltekit-auto-openapi/schema-paths";
+import validationRegistry from "sveltekit-auto-openapi/schema-validation-map";
+```
+
+> **Note**: Most users don't need to import these directly - they're used internally by `ScalarModule` and `SchemaValidationHook`.
+
+### Deprecation Warnings
+
+If you see deprecation warnings like:
+```
+[sveltekit-auto-openapi] Deprecation warning: Import path 'sveltekit-auto-openapi/schema-paths' is deprecated.
+Please use 'virtual:sveltekit-auto-openapi/schema-paths' instead.
+```
+
+Update your imports to use the `virtual:` prefix. The legacy paths will be removed in v1.0.0.
+
+### Production Builds
+
+Starting from v0.0.9, production builds fully support `_config` exports:
+
+- ✅ Zod validation schemas (`standardSchema`) are processed during build
+- ✅ Manual OpenAPI overrides (`openapiOverride`) are applied
+- ✅ Complete OpenAPI schemas are generated (not just AST inference)
+- ✅ Runtime validation works in production
+
+The plugin now uses native `import()` to execute route modules during the build phase, enabling access to all three documentation levels (AST, Zod, Manual) in production builds.
 
 ## 🐛 Debugging
 
