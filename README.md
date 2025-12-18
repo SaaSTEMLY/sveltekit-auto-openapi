@@ -7,6 +7,7 @@
 </p>
 
 [Github](https://github.com/MahmoodKhalil57/sveltekit-auto-openapi)
+[NPM](https://www.npmjs.com/package/sveltekit-auto-openapi)
 
 <p align="center">
   <strong>Type-safe OpenAPI generation and runtime validation for SvelteKit.</strong><br/>
@@ -56,7 +57,7 @@ bun install sveltekit-auto-openapi
 
 ### 2\. Add Vite Plugin
 
-Add the plugin to `vite.config.ts` to enable schema generation.
+Add the plugin to `vite.config.ts` to enable schema and validationmap generation.
 
 ```ts
 import { sveltekit } from "@sveltejs/kit/vite";
@@ -86,8 +87,6 @@ export const handle = sequence(
 ### 4\. Create API Docs Route
 
 Expose your documentation at `src/routes/api-docs/[slug]/+server.ts`.
-
-> **Note:** This requires installing `@scalar/sveltekit` (see step 1).
 
 ```ts
 import ScalarModule from "sveltekit-auto-openapi/scalar-module";
