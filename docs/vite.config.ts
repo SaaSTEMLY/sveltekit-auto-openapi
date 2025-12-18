@@ -7,17 +7,76 @@ const config = defineConfig({
 		sveltepress({
 			theme: defaultTheme({
 				navbar: [
-					// Add your navbar configs here
+					{
+						title: 'Guide',
+						to: '/introduction/',
+					},
+					{
+						title: 'Reference',
+						items: [
+							{ title: 'Plugin', to: '/essentials/plugin-configuration/' },
+							{ title: 'Validation Hook', to: '/essentials/schema-validation-hook/' },
+							{ title: 'Scalar Module', to: '/essentials/scalar-module/' },
+						]
+					},
+					{
+						title: 'GitHub',
+						to: 'https://github.com/MahmoodKhalil57/sveltekit-auto-openapi',
+					},
+					{
+						title: 'NPM',
+						to: 'https://www.npmjs.com/package/sveltekit-auto-openapi',
+					}
 				],
 				sidebar: {
-					// Add your sidebar configs here
+					'/': [
+						{
+							title: 'Introduction',
+							collapsible: true,
+							items: [
+								{ title: 'What is sveltekit-auto-openapi?', to: '/introduction/what-is-sveltekit-auto-openapi/' },
+								{ title: 'Quick Start', to: '/introduction/quick-start/' },
+							]
+						},
+						{
+							title: 'Essentials',
+							collapsible: true,
+							items: [
+								{ title: 'Plugin Configuration', to: '/essentials/plugin-configuration/' },
+								{ title: 'Schema Validation Hook', to: '/essentials/schema-validation-hook/' },
+								{ title: 'Scalar Module', to: '/essentials/scalar-module/' },
+								{
+									title: 'Usage in +server.ts',
+									collapsible: true,
+									items: [
+										{ title: 'Automatic (AST Inference)', to: '/essentials/usage-in-server-routes/automatic-ast-inference/' },
+										{ title: 'Advanced (_config RouteConfig)', to: '/essentials/usage-in-server-routes/advanced-route-config/' },
+									]
+								},
+							]
+						},
+						{
+							title: 'Advanced',
+							collapsible: true,
+							items: [
+								{ title: 'Virtual Modules', to: '/advanced/virtual-modules/' },
+								{ title: 'Validation Flags', to: '/advanced/validation-flags/' },
+								{ title: 'Type Safety', to: '/advanced/type-safety/' },
+								{ title: 'Troubleshooting', to: '/advanced/troubleshooting/' },
+							]
+						},
+						{
+							title: 'Roadmap',
+							to: '/roadmap/',
+						}
+					]
 				},
-				github: 'https://github.com/Blackman99/sveltepress',
+				github: 'https://github.com/MahmoodKhalil57/sveltekit-auto-openapi',
 				logo: '/sveltepress.svg',
 			}),
 			siteConfig: {
-				title: 'Sveltepress',
-				description: 'A content centered site build tool',
+				title: 'SvelteKit Auto OpenAPI',
+				description: 'Type-safe OpenAPI generation and runtime validation for SvelteKit',
 			},
 		}),
 	],

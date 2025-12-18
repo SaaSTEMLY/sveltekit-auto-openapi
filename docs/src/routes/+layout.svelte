@@ -1,5 +1,7 @@
 <script>
-  const { children } = $props()
+  import "./layout.css";
+
+  const { children } = $props();
 </script>
 
 <!-- Leave this. Or you can add more content for your custom layout -->
