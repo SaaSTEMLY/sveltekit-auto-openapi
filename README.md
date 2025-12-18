@@ -304,11 +304,11 @@ import validationRegistry from "virtual:sveltekit-auto-openapi/schema-validation
 
 ## Roadmap for version 0
 
-[] Explore edge cases and find errors
-[] Optimize vite plugin
-[] Expand docs and create a docs website
-[] Add proper tests
-[] Publish V1
+- [] Explore edge cases and find errors
+- [] Optimize vite plugin
+- [] Expand docs and create a docs website
+- [] Add proper tests
+- [] Publish V1
 
 ## 📄 License
 
