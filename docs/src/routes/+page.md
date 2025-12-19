@@ -53,9 +53,3 @@ features:
       name: file-type-typescript
     link: /advanced/type-safety/
 ---
-
-## Warning: Experimental v0
-
-This library is in early development (v0) and **not recommended for production use**. APIs may change, and there may be undiscovered bugs. Use at your own risk.
-
-**Contributions are welcome!** If you'd like to help improve this project, please feel free to open issues or submit pull requests.
