@@ -9,6 +9,10 @@ actions:
     type: secondary
     to: https://github.com/SaaSTEMLY/sveltekit-auto-openapi
     external: true
+  - label: View Example
+    type: secondary
+    to: https://www.basic.example.sveltekit-auto-openapi.saastemly.com
+    external: true
 features:
   - title: Automatic Inference
     description: Generates OpenAPI schemas by analyzing your request.json<Type>() calls

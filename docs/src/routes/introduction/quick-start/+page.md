@@ -149,6 +149,7 @@ The OpenAPI schema will be automatically generated from your TypeScript types! C
 - Explore [Advanced RouteConfig](/essentials/usage-in-server-routes/advanced-route-config/) to add runtime validation
 - Use [useValidation](/essentials/use-validation/) for optimized per-route validation
 - Configure the [Plugin](/essentials/plugin-configuration/), [Validation Hook](/essentials/schema-validation-hook/), and [Scalar Module](/essentials/scalar-module/)
+- Check out the [Live Example](https://www.basic.example.sveltekit-auto-openapi.saastemly.com) and its [source code](https://github.com/SaaSTEMLY/sveltekit-auto-openapi/tree/main/examples/basic)
 
 ## Troubleshooting
 

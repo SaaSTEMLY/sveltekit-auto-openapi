@@ -173,6 +173,14 @@ Thats it! Visit your docs at `/api-docs/scalar`
 
 ---
 
+## 📚 Examples
+
+Check out the **[Basic Example](https://www.basic.example.sveltekit-auto-openapi.saastemly.com)** to see SvelteKit Auto OpenAPI in action.
+
+View the [example source code](https://github.com/SaaSTEMLY/sveltekit-auto-openapi/tree/main/examples/basic) to learn how it's implemented.
+
+---
+
 ## 💡 Usage Scenarios
 
 ### Level 1: Automatic (AST Inference)
