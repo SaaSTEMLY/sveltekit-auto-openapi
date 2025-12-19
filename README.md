@@ -132,13 +132,17 @@ export const _config = {
   },
 } satisfies RouteConfig;
 
-export const POST = useValidation("POST", _config, async ({ validated }) => {
-  // Access validated inputs directly
-  const { body } = validated;
+export const POST = useValidation(
+  "POST",
+  _config,
+  async ({ validated, json, error }) => {
+    // Access validated inputs directly
+    const { body } = validated;
 
-  // Your handler logic here
-  return json({ success: true });
-});
+    // Your handler logic here
+    return json({ success: true });
+  }
+);
 ```
 
 **Benefits:**
@@ -198,7 +202,6 @@ The `useValidation` wrapper provides optimized per-route validation with full ty
 ```ts
 import { useValidation } from "sveltekit-auto-openapi/request-handler";
 import type { RouteConfig } from "sveltekit-auto-openapi/request-handler";
-import { json } from "@sveltejs/kit";
 import z from "zod";
 
 export const _config = {
@@ -239,14 +242,18 @@ export const _config = {
   },
 } satisfies RouteConfig;
 
-export const POST = useValidation("POST", _config, async ({ validated }) => {
-  // Access fully typed, pre-validated inputs
-  const { body, headers } = validated;
-  console.log("🚀 ~ POST ~ email:", body.email);
+export const POST = useValidation(
+  "POST",
+  _config,
+  async ({ validated, json, error }) => {
+    // Access fully typed, pre-validated inputs
+    const { body, headers } = validated;
+    console.log("🚀 ~ POST ~ email:", body.email);
 
-  // Return type-safe response
-  return json({ success: true });
-});
+    // Return type-safe response
+    return json({ success: true });
+  }
+);
 ```
 
 #### Using Global Hook

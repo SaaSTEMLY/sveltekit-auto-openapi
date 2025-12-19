@@ -31,10 +31,11 @@ Controls whether response validation is enabled.
 ```ts
 createSchemaValidationHook({
   validateOutput: import.meta.env.DEV, // Only validate in development
-})
+});
 ```
 
 **Recommended:**
+
 - `true` in development - Catch response validation errors early
 - `false` in production - Avoid performance overhead
 
@@ -110,6 +111,7 @@ When input validation fails:
 ```
 
 **Error detail visibility:**
+
 - Development: Detailed errors with `$showErrorMessage: true`
 - Production: Generic errors for security
 
@@ -127,11 +129,13 @@ When output validation fails (only if `validateOutput: true`):
 ## Performance Considerations
 
 ### Input Validation
+
 - Minimal overhead (~1-2ms per request)
 - Uses fast `@cfworker/json-schema` validator
 - Only validates routes with `_config` exports
 
 ### Output Validation
+
 - Additional overhead (~1-2ms per response)
 - Recommended for development only
 - Disable in production for better performance
@@ -195,13 +199,13 @@ For better performance and memory efficiency, consider using the [`useValidation
 
 ### Global Hook vs useValidation
 
-| Feature | Global Hook | useValidation |
-|---------|------------|---------------|
-| **Setup** | One-time in hooks.server.ts | Per-route in +server.ts |
+| Feature          | Global Hook                             | useValidation                               |
+| ---------------- | --------------------------------------- | ------------------------------------------- |
+| **Setup**        | One-time in hooks.server.ts             | Per-route in +server.ts                     |
 | **Memory Usage** | Loads all schemas (~5MB for 100 routes) | Loads only needed schemas (~50KB per route) |
-| **Type Safety** | Manual type casting required | Automatic type inference |
-| **Performance** | Slight overhead at startup | No startup overhead |
-| **Best For** | Small apps (<20 routes) | Medium/large apps (20+ routes) |
+| **Type Safety**  | Manual type casting required            | Automatic type inference                    |
+| **Performance**  | Slight overhead at startup              | No startup overhead                         |
+| **Best For**     | Small apps (<20 routes)                 | Medium/large apps (20+ routes)              |
 
 **Example with useValidation:**
 
@@ -209,13 +213,19 @@ For better performance and memory efficiency, consider using the [`useValidation
 import { useValidation } from "sveltekit-auto-openapi/request-handler";
 import type { RouteConfig } from "sveltekit-auto-openapi/request-handler";
 
-export const _config = { /* same config */ } satisfies RouteConfig;
+export const _config = {
+  /* same config */
+} satisfies RouteConfig;
 
-export const POST = useValidation("POST", _config, async ({ validated }) => {
-  // Fully typed and validated inputs
-  const { body, headers } = validated;
-  return json({ success: true });
-});
+export const POST = useValidation(
+  "POST",
+  _config,
+  async ({ validated, json, error }) => {
+    // Fully typed and validated inputs
+    const { body, headers } = validated;
+    return json({ success: true });
+  }
+);
 ```
 
 See the [useValidation documentation](/essentials/use-validation/) for more details.

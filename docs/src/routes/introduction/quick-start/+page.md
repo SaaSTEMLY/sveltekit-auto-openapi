@@ -80,11 +80,15 @@ export const _config = {
   /* ... */
 } satisfies RouteConfig;
 
-export const POST = useValidation("POST", _config, async ({ validated }) => {
-  // Access validated inputs with full type safety
-  const { body } = validated;
-  return json({ success: true });
-});
+export const POST = useValidation(
+  "POST",
+  _config,
+  async ({ validated, json, error }) => {
+    // Access validated inputs with full type safety
+    const { body } = validated;
+    return json({ success: true });
+  }
+);
 ```
 
 > **Skip this step** if you only want OpenAPI documentation without runtime validation.
