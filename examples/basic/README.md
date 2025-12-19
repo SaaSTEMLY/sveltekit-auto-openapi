@@ -10,6 +10,7 @@
 </a>
 
 ```ts
+// https://github.com/SaaSTEMLY/sveltekit-auto-openapi/blob/main/examples/basic/src/routes/api/usersBasic/+server.ts
 import { error, json } from '@sveltejs/kit';
 
 export const POST = async ({ request }) => {
@@ -28,6 +29,7 @@ export const POST = async ({ request }) => {
 </a>
 
 ```ts
+// https://github.com/SaaSTEMLY/sveltekit-auto-openapi/blob/main/examples/basic/src/routes/api/usersOverride/+server.ts
 import z from 'zod';
 import { useValidation, type RouteConfig } from 'sveltekit-auto-openapi/request-handler';
 
