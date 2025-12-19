@@ -7,7 +7,7 @@ description: Configure runtime request and response validation
 
 The schema validation hook is a SvelteKit handle hook that validates incoming requests and optionally outgoing responses against your schemas.
 
-> **Note:** For better performance and memory efficiency, we recommend using [`useValidation`](/essentials/use-validation/) instead of this global hook. The `useValidation` approach loads only the schemas needed for each route (~50KB) instead of all schemas (~5MB for 100 routes), and provides automatic type inference. See the [comparison below](#alternative-usevalidation) for details.
+> **Note:** For better performance and memory efficiency, we recommend using [`useValidation`](/essentials/use-validation/) instead of this global hook. The `useValidation` approach loads only the schemas needed for each route (~50KB) instead of all schemas (~5MB for 100 routes), and provides automatic type inference. See the [comparison below](#Alternative--useValidation) for details.
 
 ## Basic Setup
 
