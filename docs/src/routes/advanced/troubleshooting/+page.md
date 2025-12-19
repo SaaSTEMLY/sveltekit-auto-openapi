@@ -26,6 +26,7 @@ export default defineConfig({
 **Problem:** Requests aren't being validated
 
 **Solutions:**
+
 1. Check that the validation hook is configured in `src/hooks.server.ts`
 2. Ensure you have `_config` exports in your route files
 3. Verify that `$skipValidation` isn't set to `true`
@@ -35,6 +36,7 @@ export default defineConfig({
 **Problem:** Schema changes don't update automatically
 
 **Solutions:**
+
 1. Restart the development server
 2. Check that you're modifying `+server.ts` files
 3. Enable debug mode: `DEBUG_OPENAPI=true bun run dev`
@@ -44,6 +46,7 @@ export default defineConfig({
 **Problem:** Build fails during `vite build`
 
 **Solutions:**
+
 1. Check for TypeScript errors in your route files
 2. Ensure all `_config` exports are valid
 3. Review build logs for specific error messages
@@ -53,6 +56,7 @@ export default defineConfig({
 **Problem:** TypeScript errors in route handlers
 
 **Solutions:**
+
 1. Ensure you're using `satisfies RouteConfig` on your `_config`
 2. Import types from the correct module: `sveltekit-auto-openapi/scalar-module`
 3. Update your TypeScript configuration to recognize virtual modules
@@ -62,6 +66,7 @@ export default defineConfig({
 **Problem:** Schemas aren't being generated automatically
 
 **Solutions:**
+
 1. Use supported patterns: `request.json<Type>()` or type annotations
 2. Ensure types are inline or imported
 3. Check that complex types are supported (unions/conditionals may not work)
@@ -78,7 +83,7 @@ DEBUG_OPENAPI=true bun run dev
 
 If you're still stuck:
 
-- Open an issue on [GitHub](https://github.com/MahmoodKhalil57/sveltekit-auto-openapi/issues)
+- Open an issue on [GitHub](https://github.com/SaaSTEMLY/sveltekit-auto-openapi/issues)
 - Check existing issues for similar problems
 - Provide a minimal reproduction if possible
 

@@ -7,7 +7,7 @@ actions:
     to: /introduction/quick-start/
   - label: View on GitHub
     type: secondary
-    to: https://github.com/MahmoodKhalil57/sveltekit-auto-openapi
+    to: https://github.com/SaaSTEMLY/sveltekit-auto-openapi
     external: true
 features:
   - title: Automatic Inference

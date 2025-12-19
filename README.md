@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/bundlejs/size/sveltekit-auto-openapi?style=for-the-badge&color=green" alt="bundle size" />
 </p>
 
-[Github](https://github.com/MahmoodKhalil57/sveltekit-auto-openapi)
+[Github](https://github.com/SaaSTEMLY/sveltekit-auto-openapi)
 [NPM](https://www.npmjs.com/package/sveltekit-auto-openapi)
 
 <p align="center">
@@ -287,7 +287,7 @@ export async function POST({ request }) {
 
 <!-- ## 📚 Documentation
 
-Read the full documentation at **[docs](https://github.com/MahmoodKhalil57/sveltekit-auto-openapi/blob/main/docs/01-introduction.md)**. -->
+Read the full documentation at **[docs](https://github.com/SaaSTEMLY/sveltekit-auto-openapi/blob/main/docs/01-introduction.md)**. -->
 
 ## 🔧 Advanced Usage
 
@@ -312,4 +312,4 @@ import validationRegistry from "virtual:sveltekit-auto-openapi/schema-validation
 
 ## 📄 License
 
-[MIT](https://github.com/MahmoodKhalil57/sveltekit-auto-openapi/blob/main/LICENSE)
+[MIT](https://github.com/SaaSTEMLY/sveltekit-auto-openapi/blob/main/LICENSE)

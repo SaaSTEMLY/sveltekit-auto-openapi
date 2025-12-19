@@ -119,4 +119,4 @@ The OpenAPI schema will be automatically generated from your TypeScript types! C
 
 ## Troubleshooting
 
-If you encounter issues, check the [Troubleshooting](/advanced/troubleshooting/) guide or open an issue on [GitHub](https://github.com/MahmoodKhalil57/sveltekit-auto-openapi/issues).
+If you encounter issues, check the [Troubleshooting](/advanced/troubleshooting/) guide or open an issue on [GitHub](https://github.com/SaaSTEMLY/sveltekit-auto-openapi/issues).

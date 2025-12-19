@@ -75,7 +75,7 @@ We welcome contributions! Here's how you can help:
 
 ### Report Issues
 
-Found a bug or edge case? [Open an issue](https://github.com/MahmoodKhalil57/sveltekit-auto-openapi/issues) with:
+Found a bug or edge case? [Open an issue](https://github.com/SaaSTEMLY/sveltekit-auto-openapi/issues) with:
 
 - A clear description of the problem
 - Steps to reproduce
@@ -115,7 +115,7 @@ Help improve the docs:
 
 ## License
 
-SvelteKit Auto OpenAPI is [MIT licensed](https://github.com/MahmoodKhalil57/sveltekit-auto-openapi/blob/main/LICENSE).
+SvelteKit Auto OpenAPI is [MIT licensed](https://github.com/SaaSTEMLY/sveltekit-auto-openapi/blob/main/LICENSE).
 
 ## Acknowledgments
 

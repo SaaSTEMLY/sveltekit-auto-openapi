@@ -15,12 +15,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MahmoodKhalil57/sveltekit-auto-openapi.git"
+    "url": "git+https://github.com/SaaSTEMLY/sveltekit-auto-openapi.git"
   },
   "bugs": {
-    "url": "https://github.com/MahmoodKhalil57/sveltekit-auto-openapi/issues"
+    "url": "https://github.com/SaaSTEMLY/sveltekit-auto-openapi/issues"
   },
-  "homepage": "https://github.com/MahmoodKhalil57/sveltekit-auto-openapi#readme",
+  "homepage": "https://github.com/SaaSTEMLY/sveltekit-auto-openapi#readme",
   "exports": {
     "./plugin": {
       "types": "./dist/plugin/index.d.ts",
