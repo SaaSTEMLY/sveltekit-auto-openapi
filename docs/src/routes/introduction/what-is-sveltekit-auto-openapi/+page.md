@@ -31,7 +31,7 @@ The library consists of three main modules that work together:
 └─────┬───────────┬───┘
       │           │
       ▼           ▼
-┌──────────┐  ┌──────────────┐
+┌───────────┐  ┌──────────────┐
 │ Validation│  │ Scalar Module│
 │   Hook    │  │              │
 └─────┬─────┘  └──────┬───────┘

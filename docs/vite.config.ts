@@ -57,19 +57,19 @@ const config = defineConfig({
                   to: "/essentials/schema-validation-hook/",
                 },
                 { title: "Scalar Module", to: "/essentials/scalar-module/" },
+              ],
+            },
+            {
+              title: "Usage in +server.ts",
+              collapsible: true,
+              items: [
                 {
-                  title: "Usage in +server.ts",
-                  collapsible: true,
-                  items: [
-                    {
-                      title: "Automatic (AST Inference)",
-                      to: "/essentials/usage-in-server-routes/automatic-ast-inference/",
-                    },
-                    {
-                      title: "Advanced (_config RouteConfig)",
-                      to: "/essentials/usage-in-server-routes/advanced-route-config/",
-                    },
-                  ],
+                  title: "Automatic (AST Inference)",
+                  to: "/essentials/usage-in-server-routes/automatic-ast-inference/",
+                },
+                {
+                  title: "Advanced (_config RouteConfig)",
+                  to: "/essentials/usage-in-server-routes/advanced-route-config/",
                 },
               ],
             },
@@ -94,6 +94,32 @@ const config = defineConfig({
         },
         github: "https://github.com/SaaSTEMLY/sveltekit-auto-openapi",
         logo: "/logo/main/pwa-512x512.png",
+        preBuildIconifyIcons: {
+          "vscode-icons": [
+            "file-type-svelte",
+            "file-type-markdown",
+            "file-type-vite",
+            "file-type-typescript",
+          ],
+          logos: ["typescript-icon", "svelte-kit"],
+          emojione: ["artist-palette"],
+          ph: ["smiley", "layout-duotone"],
+          noto: ["package"],
+          solar: ["chat-square-code-outline", "reorder-outline"],
+          carbon: [
+            "tree-view-alt",
+            "import-export",
+            "checkmark-filled",
+            "renew",
+            "ibm-software-watsonx-data-analyze-and-process",
+            "document-export",
+            "code",
+          ],
+          ic: ["sharp-rocket-launch"],
+          tabler: ["icons"],
+          mdi: ["theme-light-dark"],
+          bi: ["list-nested"],
+        },
       }),
       siteConfig: {
         title: "SvelteKit Auto OpenAPI",
