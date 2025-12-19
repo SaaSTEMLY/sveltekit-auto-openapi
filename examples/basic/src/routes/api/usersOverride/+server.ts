@@ -1,33 +1,3 @@
-<a href="https://github.com/SaaSTEMLY/sveltekit-auto-openapi/tree/main/examples/basic">
-	Repository Source Code
-</a>
-
-<br>
-<br>
-
-<a href="https://www.basic.example.sveltekit-auto-openapi.saastemly.com/api-docs/scalar#tag/default/POST/api/usersBasic">
-   Basic Example - POST /api/usersBasic - Generated openapi
-</a>
-
-```ts
-import { error, json } from '@sveltejs/kit';
-
-export const POST = async ({ request }) => {
-	const { email }: { email: string } = await request.json();
-	// Request is already validated by the hook!
-	console.log('🚀 ~ POST ~ email:', email);
-	error(404, {
-		message: 'User not found'
-	});
-	return json({ success: true });
-};
-```
-
-<a href="https://www.basic.example.sveltekit-auto-openapi.saastemly.com/api-docs/scalar#tag/default/POST/api/usersOverride">
-	 Override Example - POST /api/usersOverride - Generated openapi and validation
-</a>
-
-```ts
 import z from 'zod';
 import { useValidation, type RouteConfig } from 'sveltekit-auto-openapi/request-handler';
 
@@ -97,4 +67,3 @@ export const POST = useValidation('POST', _config, async ({ validated, json, err
 	});
 	return json({ success: true });
 });
-```
