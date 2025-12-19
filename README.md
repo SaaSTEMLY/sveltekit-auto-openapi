@@ -16,6 +16,8 @@
 
 [Website](https://www.sveltekit-auto-openapi.saastemly.com)
 
+[Example](https://www.basic.example.sveltekit-auto-openapi.saastemly.com)
+
 <p align="center">
   <strong>Type-safe OpenAPI generation and runtime validation for SvelteKit.</strong><br/>
   Write standard SvelteKit code, get documented APIs for free.
