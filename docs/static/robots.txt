@@ -1,3 +1,5 @@
 # allow crawling everything by default
 User-agent: *
 Disallow:
+
+Sitemap: https://www.sveltekit-auto-openapi.saastemly.com/sitemap.xml

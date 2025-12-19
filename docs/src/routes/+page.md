@@ -1,5 +1,6 @@
 ---
 title: SvelteKit Auto OpenAPI
+tagline: ⚠️ Warning - This library is in early development (v0) and not recommended for production use. APIs may change, and there may be undiscovered bugs. Use at your own risk.
 actions:
   - label: Get Started
     type: primary
