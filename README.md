@@ -6,6 +6,10 @@
   <img src="https://img.shields.io/bundlejs/size/sveltekit-auto-openapi?style=for-the-badge&color=green" alt="bundle size" />
 </p>
 
+<p align="center">
+  <img src="https://www.sveltekit-auto-openapi.saastemly.com/logo/main/pwa-512x512.png" alt="Logo" />
+</p>
+
 [Github](https://github.com/SaaSTEMLY/sveltekit-auto-openapi)
 [NPM](https://www.npmjs.com/package/sveltekit-auto-openapi)
 [Website](www.sveltekit-auto-openapi.saastemly.com)
