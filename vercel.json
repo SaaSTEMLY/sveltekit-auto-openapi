@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd docs && bun run build",
-  "outputDirectory": "docs/.vercel/output",
-  "installCommand": "cd docs && bun install",
-  "framework": null
-}
