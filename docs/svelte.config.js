@@ -11,6 +11,9 @@ const config = {
 		adapter: adapter({
 			pages: 'dist',
 		}),
+		prerender: {
+			handleMissingId: 'ignore'
+		}
 	},
 }
 
