@@ -56,6 +56,10 @@ const config = defineConfig({
                   title: "Schema Validation Hook",
                   to: "/essentials/schema-validation-hook/",
                 },
+                {
+                  title: "useValidation Request Handler",
+                  to: "/essentials/use-validation/",
+                },
                 { title: "Scalar Module", to: "/essentials/scalar-module/" },
               ],
             },
