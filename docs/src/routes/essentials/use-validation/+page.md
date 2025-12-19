@@ -287,7 +287,7 @@ requestBody: {
 
 **Development:**
 
-```json
+```ts
 {
   "error": "Request body validation failed",
   "issues": [
@@ -302,7 +302,7 @@ requestBody: {
 
 **Production:**
 
-```json
+```ts
 {
   "error": "Invalid request data"
 }
