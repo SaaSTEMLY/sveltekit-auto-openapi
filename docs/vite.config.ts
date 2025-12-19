@@ -93,7 +93,7 @@ const config = defineConfig({
           ],
         },
         github: "https://github.com/SaaSTEMLY/sveltekit-auto-openapi",
-        logo: "/sveltepress.svg",
+        logo: "/logo/main/pwa-512x512.png",
       }),
       siteConfig: {
         title: "SvelteKit Auto OpenAPI",
