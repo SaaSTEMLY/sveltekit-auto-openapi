@@ -32,7 +32,70 @@ The plugin operates during both development and build:
 
 ## Configuration Options
 
-Currently, the plugin accepts no configuration parameters. All customization happens through `_config` exports in your route files.
+The plugin accepts the following configuration options:
+
+```ts
+svelteOpenApi({
+  skipSchemaGeneration: false, // default: false
+  skipValidationMapGeneration: false, // default: false
+})
+```
+
+### `skipSchemaGeneration`
+
+**Type:** `boolean` | **Default:** `false`
+
+When set to `true`, the plugin will skip OpenAPI schema generation entirely. This is useful if you only want runtime validation without API documentation.
+
+**Use cases:**
+- You only need request/response validation
+- You're generating OpenAPI schemas through another method
+- You want to reduce build time by skipping AST analysis
+
+**Example:**
+```ts
+export default defineConfig({
+  plugins: [
+    sveltekit(),
+    svelteOpenApi({
+      skipSchemaGeneration: true, // Only generate validation maps
+    }),
+  ],
+});
+```
+
+### `skipValidationMapGeneration`
+
+**Type:** `boolean` | **Default:** `false`
+
+When set to `true`, the plugin will skip validation map generation. This is useful if you only want OpenAPI documentation without runtime validation.
+
+**Use cases:**
+- You only need API documentation
+- You handle validation separately
+- You want to reduce bundle size by excluding validation schemas
+
+**Example:**
+```ts
+export default defineConfig({
+  plugins: [
+    sveltekit(),
+    svelteOpenApi({
+      skipValidationMapGeneration: true, // Only generate OpenAPI docs
+    }),
+  ],
+});
+```
+
+### Performance Impact
+
+Enabling these options can improve build performance:
+
+- **`skipSchemaGeneration: true`** - Skips TypeScript AST parsing and schema inference
+- **`skipValidationMapGeneration: true`** - Reduces the size of virtual modules
+- **Both enabled** - Returns immediately without processing any files
+
+Additional customization happens through `_config` exports in your route files.
 
 ## Virtual Modules
 

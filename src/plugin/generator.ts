@@ -27,7 +27,14 @@ function debug(...args: any[]) {
   }
 }
 
-export async function generate(server: ViteDevServer | null, rootDir: string) {
+export async function generate(
+  server: ViteDevServer | null,
+  rootDir: string,
+  opts: {
+    skipSchemaGeneration: boolean;
+    skipValidationMapGeneration: boolean;
+  }
+) {
   // Prevent re-entry from circular imports during SSR loading
   if (_isGenerating) {
     debug(
@@ -38,7 +45,7 @@ export async function generate(server: ViteDevServer | null, rootDir: string) {
 
   _isGenerating = true;
   try {
-    return await _generateInternal(server, rootDir);
+    return await _generateInternal(server, rootDir, opts);
   } finally {
     _isGenerating = false;
   }
@@ -287,8 +294,18 @@ function getASTProject(rootDir: string): Project {
 
 async function _generateInternal(
   server: ViteDevServer | null,
-  rootDir: string
+  rootDir: string,
+  opts: {
+    skipSchemaGeneration: boolean;
+    skipValidationMapGeneration: boolean;
+  }
 ) {
+  // Early return if both generations are skipped
+  if (opts.skipSchemaGeneration && opts.skipValidationMapGeneration) {
+    debug("⚠️ Both schema and validation map generation skipped");
+    return { openApiPaths: {}, validationMap: {} };
+  }
+
   // A. Initialize validation map
   const validationMap: any = {};
 
@@ -296,7 +313,8 @@ async function _generateInternal(
   const openApiPaths: any = {};
 
   // 2. Get or reuse AST Project (for Scenario C)
-  const project = getASTProject(rootDir);
+  // Only needed if schema generation is enabled (for AST inference)
+  const project = opts.skipSchemaGeneration ? null : getASTProject(rootDir);
 
   // 3. Find all +server.ts files
   const files = glob.sync("src/routes/**/+server.ts", {
@@ -311,19 +329,26 @@ async function _generateInternal(
       const absPath = path.join(rootDir, file);
 
       // --- NEW: Extract Path Params ---
-      const pathParams = extractPathParams(file);
+      const pathParams = opts.skipSchemaGeneration ? [] : extractPathParams(file);
 
       // Add file to AST project for analysis (or get cached if already added)
-      let sourceFile = project.getSourceFile(absPath);
-      if (!sourceFile) {
-        sourceFile = project.addSourceFileAtPath(absPath);
+      // Only needed if schema generation is enabled
+      let sourceFile = null;
+      let exportedMethods: ReadonlyMap<string, any[]> = new Map();
+
+      if (!opts.skipSchemaGeneration && project) {
+        sourceFile = project.getSourceFile(absPath);
+        if (!sourceFile) {
+          sourceFile = project.addSourceFileAtPath(absPath);
+        }
+        // Detect exported HTTP methods
+        exportedMethods = sourceFile.getExportedDeclarations();
       }
 
       // Prepare path object
-      openApiPaths[routePath] = openApiPaths[routePath] || {};
-
-      // Detect exported HTTP methods
-      const exportedMethods = sourceFile.getExportedDeclarations();
+      if (!opts.skipSchemaGeneration) {
+        openApiPaths[routePath] = openApiPaths[routePath] || {};
+      }
 
       // --- LOAD RUNTIME CONFIG (Scenario A & B) ---
       // Use universal loader that works in both dev and production
@@ -371,17 +396,20 @@ async function _generateInternal(
         // Note: Runtime configs use uppercase keys (GET, POST), OpenAPI paths use lowercase
 
         // --- Build Scenario C: TypeScript AST Inference (Lowest Priority - Fallback) ---
+        // Only infer from AST if schema generation is enabled
         const openapiASTSchema: any = {};
-        const inferred = inferFromAst(sourceFile, method);
+        if (!opts.skipSchemaGeneration && sourceFile) {
+          const inferred = inferFromAst(sourceFile, method);
 
-        if (inferred.input) {
-          openapiASTSchema.requestBody = {
-            content: { "application/json": { schema: inferred.input } },
-          };
-        }
+          if (inferred.input) {
+            openapiASTSchema.requestBody = {
+              content: { "application/json": { schema: inferred.input } },
+            };
+          }
 
-        if (inferred.responses) {
-          openapiASTSchema.responses = inferred.responses;
+          if (inferred.responses) {
+            openapiASTSchema.responses = inferred.responses;
+          }
         }
 
         // --- Process openapiOverride: Extract Validation & Clean for Docs ---
@@ -392,41 +420,48 @@ async function _generateInternal(
 
         if (openapiConfig) {
           // Extract validation configuration from openapiOverride
-          const validationConfig = extractValidationConfig(openapiConfig);
+          if (!opts.skipValidationMapGeneration) {
+            const validationConfig = extractValidationConfig(openapiConfig);
 
-          // Initialize route entry in validationMap if not exists
-          if (!validationMap[routePath]) {
-            validationMap[routePath] = {};
+            // Initialize route entry in validationMap if not exists
+            if (!validationMap[routePath]) {
+              validationMap[routePath] = {};
+            }
+
+            // Store validation config in validationMap
+            validationMap[routePath][methodKeyUpper] = {
+              modulePath: file,
+              hasInput: !!validationConfig.input,
+              hasOutput: !!validationConfig.output,
+              isImplemented,
+              input: validationConfig.input,
+              output: validationConfig.output,
+            };
           }
 
-          // Store validation config in validationMap
-          validationMap[routePath][methodKeyUpper] = {
-            modulePath: file,
-            hasInput: !!validationConfig.input,
-            hasOutput: !!validationConfig.output,
-            isImplemented,
-            input: validationConfig.input,
-            output: validationConfig.output,
-          };
-
           // Clean the operation for OpenAPI docs (remove validation flags and custom properties)
-          openapiOverrideSchema = cleanOpenapiForDocs(openapiConfig);
+          if (!opts.skipSchemaGeneration) {
+            openapiOverrideSchema = cleanOpenapiForDocs(openapiConfig);
+          }
         }
 
-        // Merge scenarios with custom merger (openapiOverride > openapiAST > base priority)
-        // Custom merger handles:
-        // - Array replacement (not merging)
-        // - Null value deletion
-        let operation = createCustomMerger(
-          openapiOverrideSchema,
-          openapiASTSchema,
-          baseOperation
-        );
+        // Only generate OpenAPI schema if not skipped
+        if (!opts.skipSchemaGeneration) {
+          // Merge scenarios with custom merger (openapiOverride > openapiAST > base priority)
+          // Custom merger handles:
+          // - Array replacement (not merging)
+          // - Null value deletion
+          let operation = createCustomMerger(
+            openapiOverrideSchema,
+            openapiASTSchema,
+            baseOperation
+          );
 
-        // Clean up: remove null values and deduplicate arrays
-        operation = deduplicateArraysInOperation(operation);
+          // Clean up: remove null values and deduplicate arrays
+          operation = deduplicateArraysInOperation(operation);
 
-        openApiPaths[routePath][methodKey] = operation;
+          openApiPaths[routePath][methodKey] = operation;
+        }
       });
     } catch (error) {
       console.error(`[OpenAPI] Error processing route file ${file}:`, error);

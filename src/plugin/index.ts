@@ -19,7 +19,16 @@ const VALIDATION_MAP_MODULE_ID =
   "virtual:sveltekit-auto-openapi/schema-validation-map";
 const RESOLVED_VALIDATION_MAP_ID = "\0" + VALIDATION_MAP_MODULE_ID;
 
-export default function svelteOpenApi() {
+export default function svelteOpenApi(opts?: {
+  skipSchemaGeneration?: boolean;
+  skipValidationMapGeneration?: boolean;
+}) {
+  const defaultOpts = {
+    skipSchemaGeneration: false,
+    skipValidationMapGeneration: false,
+  };
+  const mergedOpts = { ...defaultOpts, ...opts };
+
   let server: ViteDevServer | null = null;
   let root = process.cwd();
   let cachedSchema: any = null;
@@ -105,7 +114,8 @@ export default function svelteOpenApi() {
             // If route files import virtual modules, they'll get stubs (see above)
             const { openApiPaths, validationMap } = await generate(
               server,
-              root
+              root,
+              mergedOpts
             );
 
             // Only cache if we got valid data (not empty from re-entry guard)
@@ -174,7 +184,11 @@ export default function svelteOpenApi() {
             // Generate the complete module code with embedded validation registry
             return `
 // Auto-generated validation registry with embedded JSON Schemas
-const validationRegistry = ${JSON.stringify(cachedValidationMap || {}, null, 2)};
+const validationRegistry = ${JSON.stringify(
+              cachedValidationMap || {},
+              null,
+              2
+            )};
 
 export default validationRegistry;
 export const initPromise = Promise.resolve();

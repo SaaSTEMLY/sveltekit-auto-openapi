@@ -65,6 +65,18 @@ export default defineConfig({
 });
 ```
 
+**Plugin Options:**
+
+```ts
+svelteOpenApi({
+  skipSchemaGeneration: false, // Skip OpenAPI schema generation (default: false)
+  skipValidationMapGeneration: false, // Skip validation map generation (default: false)
+})
+```
+
+- `skipSchemaGeneration` - Set to `true` to disable OpenAPI schema generation. Useful if you only want runtime validation without documentation.
+- `skipValidationMapGeneration` - Set to `true` to disable validation map generation. Useful if you only want OpenAPI docs without runtime validation.
+
 ### 3\. Add Validation Hook
 
 Add the hook to `src/hooks.server.ts` to enable runtime validation.
