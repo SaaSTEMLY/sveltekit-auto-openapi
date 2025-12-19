@@ -8,6 +8,7 @@
 
 [Github](https://github.com/SaaSTEMLY/sveltekit-auto-openapi)
 [NPM](https://www.npmjs.com/package/sveltekit-auto-openapi)
+[Website](www.sveltekit-auto-openapi.saastemly.com)
 
 <p align="center">
   <strong>Type-safe OpenAPI generation and runtime validation for SvelteKit.</strong><br/>
