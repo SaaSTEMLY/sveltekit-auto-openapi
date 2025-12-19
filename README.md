@@ -40,15 +40,15 @@
 ### 1. Install
 
 ```bash
-npm install sveltekit-auto-openapi
+npm install -D sveltekit-auto-openapi
 ```
 
 ```bash
-pnpm install sveltekit-auto-openapi
+pnpm install -D sveltekit-auto-openapi
 ```
 
 ```bash
-bun install sveltekit-auto-openapi
+bun install -D sveltekit-auto-openapi
 ```
 
 ### 2\. Add Vite Plugin
@@ -71,7 +71,7 @@ export default defineConfig({
 svelteOpenApi({
   skipSchemaGeneration: false, // Skip OpenAPI schema generation (default: false)
   skipValidationMapGeneration: false, // Skip validation map generation (default: false)
-})
+});
 ```
 
 - `skipSchemaGeneration` - Set to `true` to disable OpenAPI schema generation. Useful if you only want runtime validation without documentation.
@@ -142,6 +142,7 @@ export const POST = useValidation("POST", _config, async ({ validated }) => {
 ```
 
 **Benefits:**
+
 - ⚡ **Memory efficient** - Only loads validation schemas for the current route
 - 🎯 **Better performance** - No global validation registry loaded into memory
 - 🔒 **Type-safe** - Full TypeScript support with `validated` inputs

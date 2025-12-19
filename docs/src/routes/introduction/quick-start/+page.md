@@ -17,19 +17,19 @@ Get up and running with SvelteKit Auto OpenAPI in 5 simple steps.
 ### 1. Install
 
 ```bash
-bun install sveltekit-auto-openapi
+bun install -D sveltekit-auto-openapi
 ```
 
 Or with npm:
 
 ```bash
-npm install sveltekit-auto-openapi
+npm install -D sveltekit-auto-openapi
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm install sveltekit-auto-openapi
+pnpm install -D sveltekit-auto-openapi
 ```
 
 ### 2. Add Vite Plugin
@@ -76,7 +76,9 @@ Use `useValidation` in individual routes for optimized, per-route validation. Se
 import { useValidation } from "sveltekit-auto-openapi/request-handler";
 import type { RouteConfig } from "sveltekit-auto-openapi/request-handler";
 
-export const _config = { /* ... */ } satisfies RouteConfig;
+export const _config = {
+  /* ... */
+} satisfies RouteConfig;
 
 export const POST = useValidation("POST", _config, async ({ validated }) => {
   // Access validated inputs with full type safety
