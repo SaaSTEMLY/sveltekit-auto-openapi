@@ -77,9 +77,13 @@ svelteOpenApi({
 - `skipSchemaGeneration` - Set to `true` to disable OpenAPI schema generation. Useful if you only want runtime validation without documentation.
 - `skipValidationMapGeneration` - Set to `true` to disable validation map generation. Useful if you only want OpenAPI docs without runtime validation.
 
-### 3\. Add Validation Hook
+### 3\. Add Runtime Validation (Choose One)
 
-Add the hook to `src/hooks.server.ts` to enable runtime validation.
+You have two options for runtime validation:
+
+#### Option A: Global Validation Hook (Simple Setup)
+
+Add the hook to `src/hooks.server.ts` to enable validation for all routes:
 
 ```ts
 import { sequence } from "@sveltejs/kit/hooks";
@@ -91,6 +95,57 @@ export const handle = sequence(
   })
 );
 ```
+
+**Note:** This approach loads all validation schemas into memory at startup. For better performance, consider Option B.
+
+#### Option B: Per-Route Validation with `useValidation` (Recommended for Performance)
+
+Use `useValidation` in individual routes for optimized validation that only loads schemas when needed:
+
+```ts
+import { useValidation } from "sveltekit-auto-openapi/request-handler";
+import type { RouteConfig } from "sveltekit-auto-openapi/request-handler";
+import z from "zod";
+
+export const _config = {
+  openapiOverride: {
+    POST: {
+      summary: "Create user",
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: z.object({ email: z.string().email() }).toJSONSchema(),
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Success",
+          content: {
+            "application/json": {
+              schema: z.object({ success: z.boolean() }).toJSONSchema(),
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies RouteConfig;
+
+export const POST = useValidation("POST", _config, async ({ validated }) => {
+  // Access validated inputs directly
+  const { body } = validated;
+
+  // Your handler logic here
+  return json({ success: true });
+});
+```
+
+**Benefits:**
+- ⚡ **Memory efficient** - Only loads validation schemas for the current route
+- 🎯 **Better performance** - No global validation registry loaded into memory
+- 🔒 **Type-safe** - Full TypeScript support with `validated` inputs
+- 🎨 **Cleaner code** - Validation logic co-located with routes
 
 ### 4\. Create API Docs Route
 
@@ -135,6 +190,68 @@ export async function POST({ request }) {
 
 Export a `_config` object with validation schemas to enforce runtime validation and generate detailed docs.
 
+#### Using `useValidation` (Recommended)
+
+The `useValidation` wrapper provides optimized per-route validation with full type safety:
+
+```ts
+import { useValidation } from "sveltekit-auto-openapi/request-handler";
+import type { RouteConfig } from "sveltekit-auto-openapi/request-handler";
+import { json } from "@sveltejs/kit";
+import z from "zod";
+
+export const _config = {
+  openapiOverride: {
+    POST: {
+      summary: "Create user",
+      description: "Creates a new user with email",
+
+      // Validate custom properties with $ prefix
+      $headers: {
+        $showErrorMessage: true,
+        schema: z.object({ "x-api-key": z.string() }).toJSONSchema(),
+      },
+
+      // Validate request body (standard OpenAPI structure)
+      requestBody: {
+        content: {
+          "application/json": {
+            $showErrorMessage: true,
+            schema: z.object({ email: z.string().email() }).toJSONSchema(),
+          },
+        },
+      },
+
+      // Validate responses (standard OpenAPI structure)
+      responses: {
+        "200": {
+          description: "Success",
+          content: {
+            "application/json": {
+              $showErrorMessage: true,
+              schema: z.object({ success: z.boolean() }).toJSONSchema(),
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies RouteConfig;
+
+export const POST = useValidation("POST", _config, async ({ validated }) => {
+  // Access fully typed, pre-validated inputs
+  const { body, headers } = validated;
+  console.log("🚀 ~ POST ~ email:", body.email);
+
+  // Return type-safe response
+  return json({ success: true });
+});
+```
+
+#### Using Global Hook
+
+Alternatively, use the global validation hook approach (requires `createSchemaValidationHook` in hooks.server.ts):
+
 ```ts
 import type {
   RouteConfig,
@@ -152,7 +269,6 @@ export const _config = {
       // Validate custom properties with $ prefix
       $headers: {
         $showErrorMessage: true,
-        $skipValidation: false,
         schema: z.object({ "x-api-key": z.string() }).toJSONSchema(),
       },
 
@@ -161,8 +277,7 @@ export const _config = {
         content: {
           "application/json": {
             $showErrorMessage: true,
-            $skipValidation: false,
-            schema: z.object({ email: z.email() }).toJSONSchema(),
+            schema: z.object({ email: z.string().email() }).toJSONSchema(),
           },
         },
       },

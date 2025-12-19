@@ -12,7 +12,7 @@ import {
   extractJsonSchema,
   convertSchemaToParameters,
 } from "./helpers.ts";
-import { RouteConfig } from "../scalar-module/index.ts";
+import { RouteConfig } from "../request-handler/index.ts";
 
 // Global flag to prevent re-entry during SSR module loading
 // This prevents infinite loops when route files import the virtual module
@@ -415,8 +415,7 @@ async function _generateInternal(
         // --- Process openapiOverride: Extract Validation & Clean for Docs ---
         let openapiOverrideSchema: any = {};
 
-        // @ts-expect-error -- Dynamic method key access on PathItemObject mapped type
-        const openapiConfig = runtimeConfig.openapiOverride?.[methodKeyUpper];
+        const openapiConfig = runtimeConfig.openapiOverride?.[methodKeyUpper as keyof typeof runtimeConfig.openapiOverride];
 
         if (openapiConfig) {
           // Extract validation configuration from openapiOverride

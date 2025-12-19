@@ -46,9 +46,13 @@ export default defineConfig({
 });
 ```
 
-### 3. Add Validation Hook
+### 3. Add Runtime Validation (Optional)
 
-Add the hook to `src/hooks.server.ts` to enable runtime validation.
+You have two options for runtime validation:
+
+#### Option A: Global Validation Hook
+
+Add the hook to `src/hooks.server.ts` to enable validation for all routes:
 
 ```ts
 import { sequence } from "@sveltejs/kit/hooks";
@@ -60,6 +64,28 @@ export const handle = sequence(
   })
 );
 ```
+
+> **Note:** This loads all validation schemas into memory. For better performance, see Option B.
+
+#### Option B: Per-Route with `useValidation` (Recommended for Performance)
+
+Use `useValidation` in individual routes for optimized, per-route validation. See [useValidation](/essentials/use-validation/) for details.
+
+```ts
+// src/routes/api/users/+server.ts
+import { useValidation } from "sveltekit-auto-openapi/request-handler";
+import type { RouteConfig } from "sveltekit-auto-openapi/request-handler";
+
+export const _config = { /* ... */ } satisfies RouteConfig;
+
+export const POST = useValidation("POST", _config, async ({ validated }) => {
+  // Access validated inputs with full type safety
+  const { body } = validated;
+  return json({ success: true });
+});
+```
+
+> **Skip this step** if you only want OpenAPI documentation without runtime validation.
 
 ### 4. Create API Docs Route
 
@@ -115,6 +141,7 @@ The OpenAPI schema will be automatically generated from your TypeScript types! C
 
 - Learn about [Automatic AST Inference](/essentials/usage-in-server-routes/automatic-ast-inference/) to understand how schemas are generated
 - Explore [Advanced RouteConfig](/essentials/usage-in-server-routes/advanced-route-config/) to add runtime validation
+- Use [useValidation](/essentials/use-validation/) for optimized per-route validation
 - Configure the [Plugin](/essentials/plugin-configuration/), [Validation Hook](/essentials/schema-validation-hook/), and [Scalar Module](/essentials/scalar-module/)
 
 ## Troubleshooting

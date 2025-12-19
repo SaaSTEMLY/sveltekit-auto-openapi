@@ -189,8 +189,40 @@ If a route has `_config` but no handler function, returns:
 501 Not Implemented
 ```
 
+## Alternative: useValidation
+
+For better performance and memory efficiency, consider using the [`useValidation`](/essentials/use-validation/) request handler instead:
+
+### Global Hook vs useValidation
+
+| Feature | Global Hook | useValidation |
+|---------|------------|---------------|
+| **Setup** | One-time in hooks.server.ts | Per-route in +server.ts |
+| **Memory Usage** | Loads all schemas (~5MB for 100 routes) | Loads only needed schemas (~50KB per route) |
+| **Type Safety** | Manual type casting required | Automatic type inference |
+| **Performance** | Slight overhead at startup | No startup overhead |
+| **Best For** | Small apps (<20 routes) | Medium/large apps (20+ routes) |
+
+**Example with useValidation:**
+
+```ts
+import { useValidation } from "sveltekit-auto-openapi/request-handler";
+import type { RouteConfig } from "sveltekit-auto-openapi/request-handler";
+
+export const _config = { /* same config */ } satisfies RouteConfig;
+
+export const POST = useValidation("POST", _config, async ({ validated }) => {
+  // Fully typed and validated inputs
+  const { body, headers } = validated;
+  return json({ success: true });
+});
+```
+
+See the [useValidation documentation](/essentials/use-validation/) for more details.
+
 ## Next Steps
 
 - Learn how to configure validation in [Advanced RouteConfig](/essentials/usage-in-server-routes/advanced-route-config/)
+- Explore [useValidation](/essentials/use-validation/) for optimized per-route validation
 - Explore [Validation Flags](/advanced/validation-flags/) for detailed control
 - See the [Scalar Module](/essentials/scalar-module/) for API documentation

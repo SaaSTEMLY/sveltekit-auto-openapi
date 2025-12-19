@@ -1,119 +1,10 @@
 import { error, json, type RequestHandler } from "@sveltejs/kit";
 import type { OpenAPIV3 } from "openapi-types";
 import { defu } from "defu";
-import openApiSchemaPaths from "virtual:sveltekit-auto-openapi/schema-paths";
 import { ScalarApiReference } from "./scalar-api-reference.ts";
 import { OpenAPIObject, OpenAPISchema } from "./openapiValidationSchema.ts";
 import z from "zod";
-import { ZodStandardJSONSchemaPayload } from "zod/v4/core";
-
-type Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
-type HttpStatusCodeStart = "1" | "2" | "3" | "4" | "5";
-
-type SpecificStatusCode = `${HttpStatusCodeStart}${Digit}${Digit}`;
-
-type WildcardStatusCode = `${HttpStatusCodeStart}XX`;
-
-type Modify<T, R> = Omit<T, keyof R> & R;
-
-export type OpenApiResponseKey =
-  | SpecificStatusCode
-  | WildcardStatusCode
-  | "default";
-
-// Custom validation configuration for the new consolidated approach
-export interface ValidationSchemaConfig {
-  $showErrorMessage?: boolean;
-  $skipValidation?: boolean;
-  schema:
-    | ZodStandardJSONSchemaPayload<unknown>
-    | OpenAPIV3.ReferenceObject
-    | OpenAPIV3.SchemaObject; // JSON Schema or ZodType - will be converted at build time
-}
-
-// Extend OpenAPI MediaTypeObject to include validation flags
-export type MediaTypeWithValidation = Omit<
-  OpenAPIV3.MediaTypeObject,
-  "schema"
-> & {
-  $showErrorMessage?: boolean;
-  $skipValidation?: boolean;
-  schema?:
-    | ZodStandardJSONSchemaPayload<unknown>
-    | OpenAPIV3.ReferenceObject
-    | OpenAPIV3.SchemaObject; // JSON Schema or ZodType - will be converted at build time
-};
-
-// Extend OpenAPI HeaderObject to include validation config
-export type HeaderWithValidation = OpenAPIV3.HeaderObject &
-  ValidationSchemaConfig;
-
-// Extend OpenAPI ResponseObject to support validation in content and headers
-export type ResponseObjectWithValidation = Omit<
-  OpenAPIV3.ResponseObject,
-  "content" | "headers"
-> & {
-  content?: Record<string, MediaTypeWithValidation>;
-  headers?: Record<string, HeaderWithValidation>;
-};
-
-// Extend OpenAPI OperationObject to include custom validation properties
-export type OperationObjectWithValidation = Omit<
-  OpenAPIV3.OperationObject,
-  "responses" | "requestBody"
-> & {
-  // Custom operation-level validation properties
-  $headers?: ValidationSchemaConfig;
-  $query?: ValidationSchemaConfig;
-  $pathParams?: ValidationSchemaConfig;
-  $cookies?: ValidationSchemaConfig;
-
-  // Override responses to support validation
-  responses?: Record<string, ResponseObjectWithValidation>;
-  requestBody?: Modify<
-    OpenAPIV3.RequestBodyObject,
-    {
-      content: {
-        [media: string]: MediaTypeWithValidation;
-      };
-    }
-  >;
-};
-
-// Updated PathItemObject to use OperationObjectWithValidation
-type PathItemObject = {
-  $ref?: string;
-  summary?: string;
-  description?: string;
-  servers?: OpenAPIV3.ServerObject[];
-  parameters?: (OpenAPIV3.ReferenceObject | OpenAPIV3.ParameterObject)[];
-} & {
-  [method in Uppercase<OpenAPIV3.HttpMethods>]?: OperationObjectWithValidation;
-};
-
-// Simplified RouteConfig - only openapiOverride now
-export interface RouteConfig {
-  openapiOverride?: PathItemObject;
-}
-
-export type RouteTypes<T extends RouteConfig> = {
-  _types: {
-    json: {
-      // @ts-expect-error - Need to ensure method keys are uppercase
-      [method in Uppercase<OpenAPIV3.HttpMethods>]: NonNullable<
-        // @ts-expect-error - Need to ensure method keys are uppercase
-        T["openapiOverride"][method]["requestBody"]["content"]["application/json"]["schema"]["~standard"]["types"]
-      >["input"];
-    };
-    returns: {
-      // @ts-expect-error - Need to ensure method keys are uppercase
-      [method in Uppercase<OpenAPIV3.HttpMethods>]: NonNullable<
-        // @ts-expect-error - Need to ensure method keys are uppercase
-        T["openapiOverride"][method]["responses"][keyof T["openapiOverride"][method]["responses"]]["content"]["application/json"]["schema"]["~standard"]["types"]
-      >["output"];
-    };
-  };
-};
+import { RouteConfig } from "../request-handler/index.ts";
 
 /**
  * @property disableOpenApi - If true, disables the OpenAPI schema endpoint.
@@ -274,9 +165,16 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
           if (opts?.disableOpenApi) {
             throw error(404, "Not found");
           }
-          const openApiPaths = overridePaths
-            ? { paths: overridePaths }
-            : openApiSchemaPaths;
+
+          // Lazy import: only load virtual module when actually serving the schema
+          // This prevents circular dependencies during module initialization
+          let openApiPaths: any;
+          if (overridePaths) {
+            openApiPaths = { paths: overridePaths };
+          } else {
+            const module = await import("virtual:sveltekit-auto-openapi/schema-paths");
+            openApiPaths = module.default;
+          }
 
           const mergedSchema = defu(openApiOpts ?? {}, {
             paths: openApiPaths,

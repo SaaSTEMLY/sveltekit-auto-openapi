@@ -33,6 +33,10 @@
     "./schema-validation-hook": {
       "types": "./dist/schema-validation-hook/index.d.ts",
       "import": "./dist/schema-validation-hook/index.js"
+    },
+    "./request-handler": {
+      "types": "./dist/request-handler/index.d.ts",
+      "import": "./dist/request-handler/index.js"
     }
   },
   "files": [
