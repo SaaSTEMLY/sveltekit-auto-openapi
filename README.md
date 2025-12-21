@@ -81,82 +81,7 @@ svelteOpenApi({
 - `skipSchemaGeneration` - Set to `true` to disable OpenAPI schema generation. Useful if you only want runtime validation without documentation.
 - `skipValidationMapGeneration` - Set to `true` to disable validation map generation. Useful if you only want OpenAPI docs without runtime validation.
 
-### 3\. Add Runtime Validation (Choose One)
-
-You have two options for runtime validation:
-
-#### Option A: Global Validation Hook (Simple Setup)
-
-Add the hook to `src/hooks.server.ts` to enable validation for all routes:
-
-```ts
-import { sequence } from "@sveltejs/kit/hooks";
-import { createSchemaValidationHook } from "sveltekit-auto-openapi/schema-validation-hook";
-
-export const handle = sequence(
-  createSchemaValidationHook({
-    validateOutput: import.meta.env.DEV, // Enable response validation in development only
-  })
-);
-```
-
-**Note:** This approach loads all validation schemas into memory at startup. For better performance, consider Option B.
-
-#### Option B: Per-Route Validation with `useValidation` (Recommended for Performance)
-
-Use `useValidation` in individual routes for optimized validation that only loads schemas when needed:
-
-```ts
-import { useValidation } from "sveltekit-auto-openapi/request-handler";
-import type { RouteConfig } from "sveltekit-auto-openapi/request-handler";
-import z from "zod";
-
-export const _config = {
-  openapiOverride: {
-    POST: {
-      summary: "Create user",
-      requestBody: {
-        content: {
-          "application/json": {
-            schema: z.object({ email: z.string().email() }).toJSONSchema(),
-          },
-        },
-      },
-      responses: {
-        "200": {
-          description: "Success",
-          content: {
-            "application/json": {
-              schema: z.object({ success: z.boolean() }).toJSONSchema(),
-            },
-          },
-        },
-      },
-    },
-  },
-} satisfies RouteConfig;
-
-export const POST = useValidation(
-  "POST",
-  _config,
-  async ({ validated, json, error }) => {
-    // Access validated inputs directly
-    const { body } = validated;
-
-    // Your handler logic here
-    return json({ success: true });
-  }
-);
-```
-
-**Benefits:**
-
-- ⚡ **Memory efficient** - Only loads validation schemas for the current route
-- 🎯 **Better performance** - No global validation registry loaded into memory
-- 🔒 **Type-safe** - Full TypeScript support with `validated` inputs
-- 🎨 **Cleaner code** - Validation logic co-located with routes
-
-### 4\. Create API Docs Route
+### 3\. Create API Docs Route
 
 Expose your documentation at `src/routes/api-docs/[slug]/+server.ts`.
 
@@ -171,7 +96,7 @@ export const { GET, _config } = ScalarModule({
 });
 ```
 
-### 5\. Visit docs
+### 4\. Visit docs
 
 Thats it! Visit your docs at `/api-docs/scalar`
 
@@ -207,76 +132,8 @@ export async function POST({ request }) {
 
 Export a `_config` object with validation schemas to enforce runtime validation and generate detailed docs.
 
-#### Using `useValidation` (Recommended)
-
-The `useValidation` wrapper provides optimized per-route validation with full type safety:
-
 ```ts
-import { useValidation } from "sveltekit-auto-openapi/request-handler";
-import type { RouteConfig } from "sveltekit-auto-openapi/request-handler";
-import z from "zod";
-
-export const _config = {
-  openapiOverride: {
-    POST: {
-      summary: "Create user",
-      description: "Creates a new user with email",
-
-      // Validate custom properties with $ prefix
-      $headers: {
-        $showErrorMessage: true,
-        schema: z.object({ "x-api-key": z.string() }).toJSONSchema(),
-      },
-
-      // Validate request body (standard OpenAPI structure)
-      requestBody: {
-        content: {
-          "application/json": {
-            $showErrorMessage: true,
-            schema: z.object({ email: z.string().email() }).toJSONSchema(),
-          },
-        },
-      },
-
-      // Validate responses (standard OpenAPI structure)
-      responses: {
-        "200": {
-          description: "Success",
-          content: {
-            "application/json": {
-              $showErrorMessage: true,
-              schema: z.object({ success: z.boolean() }).toJSONSchema(),
-            },
-          },
-        },
-      },
-    },
-  },
-} satisfies RouteConfig;
-
-export const POST = useValidation(
-  "POST",
-  _config,
-  async ({ validated, json, error }) => {
-    // Access fully typed, pre-validated inputs
-    const { body, headers } = validated;
-    console.log("🚀 ~ POST ~ email:", body.email);
-
-    // Return type-safe response
-    return json({ success: true });
-  }
-);
-```
-
-#### Using Global Hook
-
-Alternatively, use the global validation hook approach (requires `createSchemaValidationHook` in hooks.server.ts):
-
-```ts
-import type {
-  RouteConfig,
-  RouteTypes,
-} from "sveltekit-auto-openapi/scalar-module";
+import type { RouteConfig, RouteTypes } from "sveltekit-auto-openapi/types";
 import { json } from "@sveltejs/kit";
 import z from "zod";
 
@@ -319,7 +176,6 @@ export const _config = {
 } satisfies RouteConfig;
 
 export async function POST({ request }) {
-  // Request is already validated by the hook!
   const { email } = (await request.json()) as RouteTypes<
     typeof _config
   >["_types"]["json"]["POST"];
@@ -351,10 +207,7 @@ export async function POST({ request }) {
 Don't want to use StandardShema? You can provide raw JSON Schema objects directly:
 
 ```ts
-import type {
-  RouteConfig,
-  RouteTypes,
-} from "sveltekit-auto-openapi/scalar-module";
+import type { RouteConfig, RouteTypes } from "sveltekit-auto-openapi/types";
 import { json } from "@sveltejs/kit";
 
 export const _config = {
@@ -426,7 +279,6 @@ export const _config = {
 } satisfies RouteConfig;
 
 export async function POST({ request }) {
-  // Request is already validated by the hook!
   const { email } = (await request.json()) as RouteTypes<
     typeof _config
   >["_types"]["json"]["POST"];
@@ -452,7 +304,7 @@ import openApiPaths from "virtual:sveltekit-auto-openapi/schema-paths";
 import validationRegistry from "virtual:sveltekit-auto-openapi/schema-validation-map";
 ```
 
-> **Note**: Most users don't need to import these directly - they're used internally by `ScalarModule` and `SchemaValidationHook`.
+> **Note**: Most users don't need to import these directly - they're used internally by the plugin.
 
 ## Roadmap for version 0
 

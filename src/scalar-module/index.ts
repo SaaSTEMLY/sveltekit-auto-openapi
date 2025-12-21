@@ -4,7 +4,7 @@ import { defu } from "defu";
 import { ScalarApiReference } from "./scalar-api-reference.ts";
 import { OpenAPIObject, OpenAPISchema } from "./openapiValidationSchema.ts";
 import z from "zod";
-import { RouteConfig } from "../request-handler/index.ts";
+import type { RouteConfig } from "../types/index.ts";
 
 /**
  * @property disableOpenApi - If true, disables the OpenAPI schema endpoint.
@@ -172,7 +172,9 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
           if (overridePaths) {
             openApiPaths = { paths: overridePaths };
           } else {
-            const module = await import("virtual:sveltekit-auto-openapi/schema-paths");
+            const module = await import(
+              "virtual:sveltekit-auto-openapi/schema-paths"
+            );
             openApiPaths = module.default;
           }
 

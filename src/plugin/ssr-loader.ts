@@ -1,5 +1,6 @@
 import type { ViteDevServer } from "vite";
 import * as path from "path";
+import { RouteConfig } from "../types/index.ts";
 
 // Debug mode controlled by environment variable
 const DEBUG = process.env.DEBUG_OPENAPI === "true";
@@ -8,10 +9,6 @@ function debug(...args: any[]) {
   if (DEBUG) {
     console.log("[ssr-loader]", ...args);
   }
-}
-
-export interface RouteConfig {
-  openapiOverride?: Record<string, any>;
 }
 
 /**

@@ -26,17 +26,16 @@
       "types": "./dist/plugin/index.d.ts",
       "import": "./dist/plugin/index.js"
     },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts"
+    },
     "./scalar-module": {
       "types": "./dist/scalar-module/index.d.ts",
       "import": "./dist/scalar-module/index.js"
-    },
-    "./schema-validation-hook": {
-      "types": "./dist/schema-validation-hook/index.d.ts",
-      "import": "./dist/schema-validation-hook/index.js"
-    },
-    "./request-handler": {
-      "types": "./dist/request-handler/index.d.ts",
-      "import": "./dist/request-handler/index.js"
     }
   },
   "files": [

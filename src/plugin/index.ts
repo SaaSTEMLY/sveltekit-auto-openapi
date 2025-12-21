@@ -1,6 +1,7 @@
 import type { Plugin, PluginOption, ViteDevServer } from "vite";
 import { generate } from "./generator.ts";
 import { initBuildRuntime, closeBuildRuntime } from "./ssr-loader.ts";
+import { transformServerCode } from "./transformer.ts";
 
 // Debug mode controlled by environment variable
 const DEBUG = process.env.DEBUG_OPENAPI === "true";
@@ -58,6 +59,25 @@ export default function svelteOpenApi(opts?: {
 
     configureServer(_server) {
       server = _server;
+    },
+
+    // Transform +server.ts files to auto-inject validation
+    transform(code: string, id: string) {
+      // Only process +server.ts files
+      if (!id.endsWith('+server.ts')) return null;
+
+      // Quick regex check before expensive AST parsing
+      if (!code.includes('_config')) return null;
+
+      const transformed = transformServerCode(code, id);
+      if (!transformed) return null;
+
+      debug(`✓ Transformed ${id}`);
+
+      return {
+        code: transformed,
+        map: null
+      };
     },
 
     async buildStart() {

@@ -12,7 +12,7 @@ import {
   extractJsonSchema,
   convertSchemaToParameters,
 } from "./helpers.ts";
-import { RouteConfig } from "../request-handler/index.ts";
+import type { RouteConfig } from "../types/index.ts";
 
 // Global flag to prevent re-entry during SSR module loading
 // This prevents infinite loops when route files import the virtual module
@@ -329,7 +329,9 @@ async function _generateInternal(
       const absPath = path.join(rootDir, file);
 
       // --- NEW: Extract Path Params ---
-      const pathParams = opts.skipSchemaGeneration ? [] : extractPathParams(file);
+      const pathParams = opts.skipSchemaGeneration
+        ? []
+        : extractPathParams(file);
 
       // Add file to AST project for analysis (or get cached if already added)
       // Only needed if schema generation is enabled
@@ -415,7 +417,10 @@ async function _generateInternal(
         // --- Process openapiOverride: Extract Validation & Clean for Docs ---
         let openapiOverrideSchema: any = {};
 
-        const openapiConfig = runtimeConfig.openapiOverride?.[methodKeyUpper as keyof typeof runtimeConfig.openapiOverride];
+        const openapiConfig =
+          runtimeConfig.openapiOverride?.[
+            methodKeyUpper as keyof typeof runtimeConfig.openapiOverride
+          ];
 
         if (openapiConfig) {
           // Extract validation configuration from openapiOverride
