@@ -16,7 +16,6 @@
 
 	export const POST = async ({ request }) => {
 		const { email }: { email: string } = await request.json();
-		// Request is already validated by the hook!
 		console.log('🚀 ~ POST ~ email:', email);
 		error(404, {
 			message: 'User not found'
@@ -35,7 +34,8 @@
 
 	// https://github.com/SaaSTEMLY/sveltekit-auto-openapi/blob/main/examples/basic/src/routes/api/usersOverride/+server.ts
 	import z from 'zod';
-	import { useValidation, type RouteConfig } from 'sveltekit-auto-openapi/request-handler';
+	import type { RouteConfig } from 'sveltekit-auto-openapi/types';
+
 
 	export const _config = {
 		openapiOverride: {
@@ -94,15 +94,14 @@
 		}
 	} satisfies RouteConfig;
 
-	export const POST = useValidation('POST', _config, async ({ validated, json, error }) => {
+	export const POST = async ({ validated, json, error }) => {
 		const { email } = validated.body;
-		// Request is already validated by the hook!
 		console.log('🚀 ~ POST ~ email:', email);
 		error(404, {
 			success: false
 		});
 		return json({ success: true });
-	});
+	};
 
 
 ```

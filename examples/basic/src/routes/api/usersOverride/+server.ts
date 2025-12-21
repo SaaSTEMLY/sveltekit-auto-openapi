@@ -1,5 +1,5 @@
 import z from 'zod';
-import { useValidation, type RouteConfig } from 'sveltekit-auto-openapi/request-handler';
+import type { RouteConfig } from 'sveltekit-auto-openapi/types';
 
 export const _config = {
 	openapiOverride: {
@@ -58,12 +58,14 @@ export const _config = {
 	}
 } satisfies RouteConfig;
 
-export const POST = useValidation('POST', _config, async ({ validated, json, error }) => {
-	const { email } = validated.body;
-	// Request is already validated by the hook!
-	console.log('🚀 ~ POST ~ email:', email);
-	error(404, {
-		success: false
-	});
+export async function POST(event) {
+	const json = event.json;
+	const error = event.error;
+	const email = event.validated.body.email;
+	if (email !== 'example@test.com') {
+		error(404, {
+			message: 'User not found'
+		});
+	}
 	return json({ success: true });
-});
+}

@@ -8,21 +8,6 @@ const config = defineConfig({
       theme: defaultTheme({
         navbar: [
           {
-            title: "Guide",
-            to: "/introduction/",
-          },
-          {
-            title: "Reference",
-            items: [
-              { title: "Plugin", to: "/essentials/plugin-configuration/" },
-              {
-                title: "Validation Hook",
-                to: "/essentials/schema-validation-hook/",
-              },
-              { title: "Scalar Module", to: "/essentials/scalar-module/" },
-            ],
-          },
-          {
             title: "GitHub",
             to: "https://github.com/SaaSTEMLY/sveltekit-auto-openapi",
           },
@@ -32,69 +17,7 @@ const config = defineConfig({
           },
         ],
         sidebar: {
-          "/": [
-            {
-              title: "Introduction",
-              collapsible: true,
-              items: [
-                {
-                  title: "What is sveltekit-auto-openapi?",
-                  to: "/introduction/what-is-sveltekit-auto-openapi/",
-                },
-                { title: "Quick Start", to: "/introduction/quick-start/" },
-              ],
-            },
-            {
-              title: "Essentials",
-              collapsible: true,
-              items: [
-                {
-                  title: "Plugin Configuration",
-                  to: "/essentials/plugin-configuration/",
-                },
-                {
-                  title: "Schema Validation Hook",
-                  to: "/essentials/schema-validation-hook/",
-                },
-                {
-                  title: "useValidation Request Handler",
-                  to: "/essentials/use-validation/",
-                },
-                { title: "Scalar Module", to: "/essentials/scalar-module/" },
-              ],
-            },
-            {
-              title: "Usage in +server.ts",
-              collapsible: true,
-              items: [
-                {
-                  title: "Automatic (AST Inference)",
-                  to: "/essentials/usage-in-server-routes/automatic-ast-inference/",
-                },
-                {
-                  title: "Advanced (_config RouteConfig)",
-                  to: "/essentials/usage-in-server-routes/advanced-route-config/",
-                },
-              ],
-            },
-            {
-              title: "Advanced",
-              collapsible: true,
-              items: [
-                { title: "Virtual Modules", to: "/advanced/virtual-modules/" },
-                {
-                  title: "Validation Flags",
-                  to: "/advanced/validation-flags/",
-                },
-                { title: "Type Safety", to: "/advanced/type-safety/" },
-                { title: "Troubleshooting", to: "/advanced/troubleshooting/" },
-              ],
-            },
-            {
-              title: "Roadmap",
-              to: "/roadmap/",
-            },
-          ],
+          "/": [],
         },
         github: "https://github.com/SaaSTEMLY/sveltekit-auto-openapi",
         logo: "/logo/main/pwa-512x512.png",
@@ -118,6 +41,7 @@ const config = defineConfig({
             "ibm-software-watsonx-data-analyze-and-process",
             "document-export",
             "code",
+            "lightning",
           ],
           ic: ["sharp-rocket-launch"],
           tabler: ["icons"],

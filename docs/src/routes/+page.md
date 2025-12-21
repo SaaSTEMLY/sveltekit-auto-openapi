@@ -4,7 +4,7 @@ tagline: ⚠️ Warning - This library is in early development (v0) and not reco
 actions:
   - label: Get Started
     type: primary
-    to: /introduction/quick-start/
+    to: /
   - label: View on GitHub
     type: secondary
     to: https://github.com/SaaSTEMLY/sveltekit-auto-openapi
@@ -20,40 +20,40 @@ features:
       type: iconify
       collection: carbon
       name: ibm-software-watsonx-data-analyze-and-process
-    link: /essentials/usage-in-server-routes/automatic-ast-inference/
-  - title: Runtime Validation
-    description: Validates requests using JSON Schema with StandardSchema support (Zod, Valibot, TypeBox, ArkType)
-    icon:
-      type: iconify
-      collection: carbon
-      name: checkmark-filled
-    link: /essentials/schema-validation-hook/
+    link: /
   - title: Interactive Documentation
     description: Built-in Scalar integration for beautiful API references
     icon:
       type: iconify
       collection: carbon
       name: document-export
-    link: /essentials/scalar-module/
+    link: /
   - title: Zero Boilerplate
     description: Works directly with standard SvelteKit +server.ts files
     icon:
       type: iconify
       collection: carbon
       name: code
-    link: /essentials/usage-in-server-routes/automatic-ast-inference/
+    link: /
   - title: Hot Reload
     description: OpenAPI schemas update instantly as you modify routes
     icon:
       type: iconify
       collection: carbon
       name: renew
-    link: /essentials/plugin-configuration/
+    link: /
+  - title: Optimized for production
+    description: Each file loads the validation that concerns it, nothing more
+    icon:
+      type: iconify
+      collection: carbon
+      name: lightning
+    link: /
   - title: Type Safety
     description: Full TypeScript support with type inference from schemas
     icon:
       type: iconify
       collection: vscode-icons
       name: file-type-typescript
-    link: /advanced/type-safety/
+    link: /
 ---
