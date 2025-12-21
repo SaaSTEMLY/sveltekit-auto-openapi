@@ -10,9 +10,6 @@
     "declaration": true,
     "skipLibCheck": true,
     "paths": {
-      "virtual:sveltekit-auto-openapi/schema-validation-map": [
-        "./src/virtual/schema-validation-map.d.ts"
-      ],
       "virtual:sveltekit-auto-openapi/schema-paths": [
         "./src/virtual/schema-paths.d.ts"
       ]

@@ -57,7 +57,7 @@ bun install -D sveltekit-auto-openapi
 
 ### 2\. Add Vite Plugin
 
-Add the plugin to `vite.config.ts` to enable schema and validationmap generation.
+Add the plugin to `vite.config.ts` to enable schema generation.
 
 ```ts
 import { sveltekit } from "@sveltejs/kit/vite";
@@ -74,12 +74,10 @@ export default defineConfig({
 ```ts
 svelteOpenApi({
   skipSchemaGeneration: false, // Skip OpenAPI schema generation (default: false)
-  skipValidationMapGeneration: false, // Skip validation map generation (default: false)
 });
 ```
 
 - `skipSchemaGeneration` - Set to `true` to disable OpenAPI schema generation. Useful if you only want runtime validation without documentation.
-- `skipValidationMapGeneration` - Set to `true` to disable validation map generation. Useful if you only want OpenAPI docs without runtime validation.
 
 ### 3\. Create API Docs Route
 
@@ -133,9 +131,8 @@ export async function POST({ request }) {
 Export a `_config` object with validation schemas to enforce runtime validation and generate detailed docs.
 
 ```ts
-import type { RouteConfig, RouteTypes } from "sveltekit-auto-openapi/types";
-import { json } from "@sveltejs/kit";
 import z from "zod";
+import type { RouteConfig } from "sveltekit-auto-openapi/types";
 
 export const _config = {
   openapiOverride: {
@@ -175,16 +172,14 @@ export const _config = {
   },
 } satisfies RouteConfig;
 
-export async function POST({ request }) {
-  const { email } = (await request.json()) as RouteTypes<
-    typeof _config
-  >["_types"]["json"]["POST"];
-
-  console.log("🚀 ~ POST ~ email:", email);
-
-  return json({ success: true } satisfies RouteTypes<
-    typeof _config
-  >["_types"]["returns"]["POST"]);
+export async function POST({ validated, json, error }) {
+  const { email } = validated;
+  if (email !== "example@test.com") {
+    error(404, {
+      message: "User not found",
+    });
+  }
+  return json({ success: true });
 }
 ```
 
@@ -207,8 +202,8 @@ export async function POST({ request }) {
 Don't want to use StandardShema? You can provide raw JSON Schema objects directly:
 
 ```ts
-import type { RouteConfig, RouteTypes } from "sveltekit-auto-openapi/types";
 import { json } from "@sveltejs/kit";
+import type { RouteConfig } from "sveltekit-auto-openapi/types";
 
 export const _config = {
   openapiOverride: {
@@ -278,14 +273,14 @@ export const _config = {
   },
 } satisfies RouteConfig;
 
-export async function POST({ request }) {
-  const { email } = (await request.json()) as RouteTypes<
-    typeof _config
-  >["_types"]["json"]["POST"];
-  console.log("🚀 ~ POST ~ email:", email);
-  return json({ success: true } satisfies RouteTypes<
-    typeof _config
-  >["_types"]["returns"]["POST"]);
+export async function POST({ validated, json, error }) {
+  const { email } = validated;
+  if (email !== "example@test.com") {
+    error(404, {
+      message: "User not found",
+    });
+  }
+  return json({ success: true });
 }
 ```
 
@@ -301,7 +296,6 @@ For advanced users who need direct access to generated schemas, virtual modules 
 
 ```ts
 import openApiPaths from "virtual:sveltekit-auto-openapi/schema-paths";
-import validationRegistry from "virtual:sveltekit-auto-openapi/schema-validation-map";
 ```
 
 > **Note**: Most users don't need to import these directly - they're used internally by the plugin.

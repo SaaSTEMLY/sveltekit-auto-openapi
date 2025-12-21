@@ -32,7 +32,6 @@ export async function generate(
   rootDir: string,
   opts: {
     skipSchemaGeneration: boolean;
-    skipValidationMapGeneration: boolean;
   }
 ) {
   // Prevent re-entry from circular imports during SSR loading
@@ -40,7 +39,7 @@ export async function generate(
     debug(
       "⚠️ Skipping re-entrant generate call (circular dependency detected)"
     );
-    return { openApiPaths: {}, validationMap: {} };
+    return { openApiPaths: {} };
   }
 
   _isGenerating = true;
@@ -54,128 +53,6 @@ export async function generate(
 // Cache AST project for better performance
 let _cachedProject: Project | null = null;
 let _cachedProjectRoot: string | null = null;
-
-// Type definitions for internal use
-type ValidationSchemaConfig = {
-  schema: any;
-  showErrorMessage?: boolean;
-  skipValidation?: boolean;
-};
-
-type InputValidationConfig = {
-  body?: ValidationSchemaConfig;
-  query?: ValidationSchemaConfig;
-  parameters?: ValidationSchemaConfig;
-  headers?: ValidationSchemaConfig;
-  cookies?: ValidationSchemaConfig;
-};
-
-type OutputValidationConfig = {
-  body?: ValidationSchemaConfig;
-  headers?: Record<string, ValidationSchemaConfig>;
-  cookies?: ValidationSchemaConfig;
-};
-
-/** Helper: Extract validation configs from openapiOverride operation
- * Extracts custom $headers, $query, $pathParams, $cookies properties
- * and validation flags from requestBody and responses
- */
-function extractValidationConfig(operation: any): {
-  input?: InputValidationConfig;
-  output?: Record<string, OutputValidationConfig>;
-} {
-  const input: InputValidationConfig = {};
-  const output: Record<string, OutputValidationConfig> = {};
-
-  // Extract input validation from custom properties
-  if (operation.$headers) {
-    input.headers = {
-      schema: extractJsonSchema(operation.$headers.schema),
-      showErrorMessage: operation.$headers.$showErrorMessage,
-      skipValidation: operation.$headers.$skipValidation,
-    };
-  }
-
-  if (operation.$query) {
-    input.query = {
-      schema: extractJsonSchema(operation.$query.schema),
-      showErrorMessage: operation.$query.$showErrorMessage,
-      skipValidation: operation.$query.$skipValidation,
-    };
-  }
-
-  if (operation.$pathParams) {
-    input.parameters = {
-      schema: extractJsonSchema(operation.$pathParams.schema),
-      showErrorMessage: operation.$pathParams.$showErrorMessage,
-      skipValidation: operation.$pathParams.$skipValidation,
-    };
-  }
-
-  if (operation.$cookies) {
-    input.cookies = {
-      schema: extractJsonSchema(operation.$cookies.schema),
-      showErrorMessage: operation.$cookies.$showErrorMessage,
-      skipValidation: operation.$cookies.$skipValidation,
-    };
-  }
-
-  // Extract body validation from requestBody
-  if (operation.requestBody?.content) {
-    for (const [contentType, mediaType] of Object.entries(
-      operation.requestBody.content
-    )) {
-      if (contentType === "application/json" && (mediaType as any).schema) {
-        input.body = {
-          schema: extractJsonSchema((mediaType as any).schema),
-          showErrorMessage: (mediaType as any).$showErrorMessage,
-          skipValidation: (mediaType as any).$skipValidation,
-        };
-        break; // Only process first JSON content type
-      }
-    }
-  }
-
-  // Extract output validation from responses
-  if (operation.responses) {
-    for (const [statusCode, response] of Object.entries(operation.responses)) {
-      const resp = response as any;
-      output[statusCode] = {};
-
-      // Extract response body validation
-      if (resp.content?.["application/json"]) {
-        const jsonContent = resp.content["application/json"];
-        if (jsonContent.schema) {
-          output[statusCode].body = {
-            schema: extractJsonSchema(jsonContent.schema),
-            showErrorMessage: jsonContent.$showErrorMessage,
-            skipValidation: jsonContent.$skipValidation,
-          };
-        }
-      }
-
-      // Extract response headers validation
-      if (resp.headers) {
-        output[statusCode].headers = {};
-        for (const [headerName, headerObj] of Object.entries(resp.headers)) {
-          const header = headerObj as any;
-          if (header.schema) {
-            output[statusCode].headers![headerName] = {
-              schema: extractJsonSchema(header.schema),
-              showErrorMessage: header.$showErrorMessage,
-              skipValidation: header.$skipValidation,
-            };
-          }
-        }
-      }
-    }
-  }
-
-  return {
-    input: Object.keys(input).length > 0 ? input : undefined,
-    output: Object.keys(output).length > 0 ? output : undefined,
-  };
-}
 
 /** Helper: Clean OpenAPI operation for documentation
  * Converts custom validation properties to OpenAPI parameters and merges them
@@ -297,17 +174,13 @@ async function _generateInternal(
   rootDir: string,
   opts: {
     skipSchemaGeneration: boolean;
-    skipValidationMapGeneration: boolean;
   }
 ) {
-  // Early return if both generations are skipped
-  if (opts.skipSchemaGeneration && opts.skipValidationMapGeneration) {
-    debug("⚠️ Both schema and validation map generation skipped");
-    return { openApiPaths: {}, validationMap: {} };
+  // Early return if schema generation is skipped
+  if (opts.skipSchemaGeneration) {
+    debug("⚠️ Schema generation skipped");
+    return { openApiPaths: {} };
   }
-
-  // A. Initialize validation map
-  const validationMap: any = {};
 
   // 1. Initialize OpenAPI Skeleton
   const openApiPaths: any = {};
@@ -423,26 +296,6 @@ async function _generateInternal(
           ];
 
         if (openapiConfig) {
-          // Extract validation configuration from openapiOverride
-          if (!opts.skipValidationMapGeneration) {
-            const validationConfig = extractValidationConfig(openapiConfig);
-
-            // Initialize route entry in validationMap if not exists
-            if (!validationMap[routePath]) {
-              validationMap[routePath] = {};
-            }
-
-            // Store validation config in validationMap
-            validationMap[routePath][methodKeyUpper] = {
-              modulePath: file,
-              hasInput: !!validationConfig.input,
-              hasOutput: !!validationConfig.output,
-              isImplemented,
-              input: validationConfig.input,
-              output: validationConfig.output,
-            };
-          }
-
           // Clean the operation for OpenAPI docs (remove validation flags and custom properties)
           if (!opts.skipSchemaGeneration) {
             openapiOverrideSchema = cleanOpenapiForDocs(openapiConfig);
@@ -494,5 +347,5 @@ async function _generateInternal(
     console.log("");
   }
 
-  return { openApiPaths, validationMap };
+  return { openApiPaths };
 }

@@ -16,24 +16,17 @@ function debug(...args: any[]) {
 const SCHEMA_PATHS_MODULE_ID = "virtual:sveltekit-auto-openapi/schema-paths";
 const RESOLVED_SCHEMA_PATHS_ID = "\0" + SCHEMA_PATHS_MODULE_ID;
 
-const VALIDATION_MAP_MODULE_ID =
-  "virtual:sveltekit-auto-openapi/schema-validation-map";
-const RESOLVED_VALIDATION_MAP_ID = "\0" + VALIDATION_MAP_MODULE_ID;
-
 export default function svelteOpenApi(opts?: {
   skipSchemaGeneration?: boolean;
-  skipValidationMapGeneration?: boolean;
 }) {
   const defaultOpts = {
     skipSchemaGeneration: false,
-    skipValidationMapGeneration: false,
   };
   const mergedOpts = { ...defaultOpts, ...opts };
 
   let server: ViteDevServer | null = null;
   let root = process.cwd();
   let cachedSchema: any = null;
-  let cachedValidationMap: any = null;
   let isGenerating = false;
 
   return {
@@ -64,10 +57,10 @@ export default function svelteOpenApi(opts?: {
     // Transform +server.ts files to auto-inject validation
     transform(code: string, id: string) {
       // Only process +server.ts files
-      if (!id.endsWith('+server.ts')) return null;
+      if (!id.endsWith("+server.ts")) return null;
 
       // Quick regex check before expensive AST parsing
-      if (!code.includes('_config')) return null;
+      if (!code.includes("_config")) return null;
 
       const transformed = transformServerCode(code, id);
       if (!transformed) return null;
@@ -76,7 +69,7 @@ export default function svelteOpenApi(opts?: {
 
       return {
         code: transformed,
-        map: null
+        map: null,
       };
     },
 
@@ -95,17 +88,11 @@ export default function svelteOpenApi(opts?: {
       if (id === SCHEMA_PATHS_MODULE_ID) {
         return RESOLVED_SCHEMA_PATHS_ID;
       }
-      if (id === VALIDATION_MAP_MODULE_ID) {
-        return RESOLVED_VALIDATION_MAP_ID;
-      }
     },
 
     // Load virtual module
     async load(id) {
-      if (
-        id === RESOLVED_SCHEMA_PATHS_ID ||
-        id === RESOLVED_VALIDATION_MAP_ID
-      ) {
+      if (id === RESOLVED_SCHEMA_PATHS_ID) {
         // CRITICAL: If we're currently generating and a route file imports this virtual module
         // during SSR loading, we must return cached data or empty stub immediately to avoid deadlock
         if (isGenerating) {
@@ -125,27 +112,19 @@ export default function svelteOpenApi(opts?: {
         }
 
         // Generate if we don't have cached data
-        if (!cachedSchema || !cachedValidationMap) {
+        if (!cachedSchema) {
           isGenerating = true;
           console.log("Generating OpenAPI schema and Validation map...");
 
           try {
             // Pass server to enable runtime Zod schema loading
             // If route files import virtual modules, they'll get stubs (see above)
-            const { openApiPaths, validationMap } = await generate(
-              server,
-              root,
-              mergedOpts
-            );
+            const { openApiPaths } = await generate(server, root, mergedOpts);
 
             // Only cache if we got valid data (not empty from re-entry guard)
-            if (
-              Object.keys(openApiPaths).length > 0 ||
-              Object.keys(validationMap).length > 0
-            ) {
+            if (Object.keys(openApiPaths).length > 0) {
               console.log("✓ Generation complete.");
               cachedSchema = openApiPaths;
-              cachedValidationMap = validationMap;
 
               // CRITICAL: Invalidate the virtual modules in Vite's module graph
               // This forces any route files that imported the stub during SSR loading
@@ -158,16 +137,6 @@ export default function svelteOpenApi(opts?: {
                   server.moduleGraph.invalidateModule(schemaModule);
                   debug("✓ Invalidated schema module to reload with real data");
                 }
-
-                const validationMapModule = server.moduleGraph.getModuleById(
-                  RESOLVED_VALIDATION_MAP_ID
-                );
-                if (validationMapModule) {
-                  server.moduleGraph.invalidateModule(validationMapModule);
-                  debug(
-                    "✓ Invalidated validation map module to reload with real data"
-                  );
-                }
               }
             } else {
               debug(
@@ -175,7 +144,6 @@ export default function svelteOpenApi(opts?: {
               );
               // Initialize cache with empty objects if still null
               if (!cachedSchema) cachedSchema = {};
-              if (!cachedValidationMap) cachedValidationMap = {};
             }
           } finally {
             isGenerating = false;
@@ -195,29 +163,6 @@ export default function svelteOpenApi(opts?: {
             return `export default {};`;
           }
         }
-
-        if (id === RESOLVED_VALIDATION_MAP_ID) {
-          try {
-            // New approach: Directly embed validation configs (no lazy-loading needed)
-            // Validation configs now contain JSON Schemas (converted from Zod at build time)
-
-            // Generate the complete module code with embedded validation registry
-            return `
-// Auto-generated validation registry with embedded JSON Schemas
-const validationRegistry = ${JSON.stringify(
-              cachedValidationMap || {},
-              null,
-              2
-            )};
-
-export default validationRegistry;
-export const initPromise = Promise.resolve();
-`;
-          } catch (err) {
-            console.error("Failed to generate validation map:", err);
-            return `export default {}; export const initPromise = Promise.resolve();`;
-          }
-        }
       }
     },
 
@@ -229,7 +174,7 @@ export const initPromise = Promise.resolve();
     // Production build hook - for logging/cleanup only
     // Virtual modules are automatically bundled by Vite/Rollup via resolveId + load hooks
     async closeBundle() {
-      if (!cachedSchema || !cachedValidationMap) {
+      if (!cachedSchema) {
         debug(
           "⚠️ closeBundle: No cached schema/validation map - generation may not have run"
         );
@@ -241,11 +186,6 @@ export const initPromise = Promise.resolve();
           Object.keys(cachedSchema).length
         } route(s)`
       );
-      debug(
-        `✓ Validation map bundled with ${
-          Object.keys(cachedValidationMap).length
-        } route(s)`
-      );
     },
 
     // Trigger HMR on file change
@@ -253,7 +193,6 @@ export const initPromise = Promise.resolve();
       if (file.endsWith("+server.ts")) {
         // Clear cache to force regeneration on next load
         cachedSchema = null;
-        cachedValidationMap = null;
 
         // Invalidate the virtual module to trigger regeneration
         const schemaModule = server.moduleGraph.getModuleById(
@@ -261,13 +200,6 @@ export const initPromise = Promise.resolve();
         );
         if (schemaModule) {
           server.moduleGraph.invalidateModule(schemaModule);
-        }
-
-        const validationMapModule = server.moduleGraph.getModuleById(
-          RESOLVED_VALIDATION_MAP_ID
-        );
-        if (validationMapModule) {
-          server.moduleGraph.invalidateModule(validationMapModule);
         }
 
         debug(
