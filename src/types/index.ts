@@ -292,3 +292,16 @@ export interface ValidatedInputs<TInputs = any> {
     ? Cookies
     : Record<string, string>;
 }
+
+/**
+ * Combined helper types injected into RequestEvent for a specific HTTP method.
+ * Used by generated $types.d.ts files to augment RequestEvent with validation helpers.
+ */
+export type InjectedHelpers<
+  Config extends RouteConfig,
+  Method extends Uppercase<OpenAPIV3.HttpMethods>
+> = {
+  validated: ValidatedInputs<ExtractValidatedInputsForMethod<Config, Method>>;
+  json: TypedJsonFunction<ExtractSuccessResponseTypeForMethod<Config, Method>>;
+  error: TypedErrorFunction<ExtractErrorResponseTypeForMethod<Config, Method>>;
+};

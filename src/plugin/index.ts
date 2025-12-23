@@ -1,7 +1,15 @@
-import type { Plugin, PluginOption, ViteDevServer } from "vite";
+import type { PluginOption, ViteDevServer } from "vite";
 import { generate } from "./generator.ts";
 import { initBuildRuntime, closeBuildRuntime } from "./ssr-loader.ts";
 import { transformServerCode } from "./transformer.ts";
+import {
+  injectTypesForRoute,
+  injectionQueue,
+  analyzeServerFile,
+  typesPathToServerPath,
+} from "./type-injector.ts";
+import path from "path";
+import fs from "fs/promises";
 
 // Debug mode controlled by environment variable
 const DEBUG = process.env.DEBUG_OPENAPI === "true";
@@ -16,11 +24,48 @@ function debug(...args: any[]) {
 const SCHEMA_PATHS_MODULE_ID = "virtual:sveltekit-auto-openapi/schema-paths";
 const RESOLVED_SCHEMA_PATHS_ID = "\0" + SCHEMA_PATHS_MODULE_ID;
 
+// Helper functions for type injection
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function injectTypesForAllRoutes(root: string): Promise<void> {
+  const { glob } = await import("glob");
+
+  const serverFiles = await glob("**/+server.ts", {
+    cwd: path.join(root, "src"),
+    absolute: true,
+  });
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const serverPath of serverFiles) {
+    const result = await injectTypesForRoute(serverPath, root);
+    if (result.success && result.typesPath) {
+      successCount++;
+    } else {
+      failCount++;
+    }
+  }
+
+  console.log(
+    `[sveltekit-auto-openapi] Type injection: ${successCount} routes, ${failCount} skipped`
+  );
+}
+
 export default function svelteOpenApi(opts?: {
   skipSchemaGeneration?: boolean;
+  enableTypeInjection?: boolean;
 }) {
   const defaultOpts = {
     skipSchemaGeneration: false,
+    enableTypeInjection: true,
   };
   const mergedOpts = { ...defaultOpts, ...opts };
 
@@ -28,6 +73,7 @@ export default function svelteOpenApi(opts?: {
   let root = process.cwd();
   let cachedSchema: any = null;
   let isGenerating = false;
+  let isProcessingTypeChange = false;
 
   return {
     name: "sveltekit-auto-openapi",
@@ -52,6 +98,55 @@ export default function svelteOpenApi(opts?: {
 
     configureServer(_server) {
       server = _server;
+
+      // Only set up watchers if type injection is enabled
+      if (!mergedOpts.enableTypeInjection) return;
+
+      // Inject types for all routes on server start
+      // This ensures types are injected even if user ran `svelte-kit sync` manually
+      console.log("[sveltekit-auto-openapi] Injecting types on dev server startup...");
+      (async () => {
+        try {
+          await injectTypesForAllRoutes(root);
+        } catch (err) {
+          console.error("[sveltekit-auto-openapi] Failed to inject types on startup:", err);
+        }
+      })();
+
+      // Watch .svelte-kit/types directory for SvelteKit regenerations
+      const typesDir = path.join(root, ".svelte-kit/types");
+      server.watcher.add(`${typesDir}/**/$types.d.ts`);
+
+      // Re-patch when SvelteKit overwrites our changes
+      server.watcher.on("change", async (file) => {
+        if (isProcessingTypeChange) return; // Prevent re-entry
+
+        if (file.includes(".svelte-kit/types") && file.endsWith("$types.d.ts")) {
+          isProcessingTypeChange = true;
+
+          try {
+            const serverPath = typesPathToServerPath(file, root);
+            const exists = await fileExists(serverPath);
+
+            if (exists) {
+              debug(`Re-injecting types after SvelteKit regeneration: ${file}`);
+              await injectTypesForRoute(serverPath, root);
+            }
+          } finally {
+            // Debounce to prevent rapid re-triggering
+            setTimeout(() => {
+              isProcessingTypeChange = false;
+            }, 100);
+          }
+        }
+      });
+
+      // Process pending injections when types directory appears or expands
+      server.watcher.on("add", async (file) => {
+        if (file.includes(".svelte-kit/types")) {
+          await injectionQueue.processPending(root);
+        }
+      });
     },
 
     // Transform +server.ts files to auto-inject validation
@@ -80,6 +175,12 @@ export default function svelteOpenApi(opts?: {
           "[sveltekit-auto-openapi] Initializing build-mode module runtime..."
         );
         await initBuildRuntime(root);
+
+        // Inject types for all routes before compilation
+        if (mergedOpts.enableTypeInjection) {
+          console.log("[sveltekit-auto-openapi] Injecting types for build...");
+          await injectTypesForAllRoutes(root);
+        }
       }
     },
 
@@ -169,6 +270,9 @@ export default function svelteOpenApi(opts?: {
     async buildEnd() {
       // Cleanup module runtime after build
       await closeBuildRuntime();
+      if (mergedOpts.enableTypeInjection) {
+        injectionQueue.clear();
+      }
     },
 
     // Production build hook - for logging/cleanup only
@@ -189,8 +293,22 @@ export default function svelteOpenApi(opts?: {
     },
 
     // Trigger HMR on file change
-    handleHotUpdate({ file, server }) {
+    async handleHotUpdate({ file, server, read }) {
       if (file.endsWith("+server.ts")) {
+        // Handle type injection if enabled
+        if (mergedOpts.enableTypeInjection) {
+          const content = await read();
+          const result = await injectTypesForRoute(file, root, content);
+
+          if (!result.success && result.error?.includes("not generated yet")) {
+            // Types don't exist yet, queue for later
+            const { hasConfig, methods } = await analyzeServerFile(file, content);
+            if (hasConfig && methods.length > 0) {
+              injectionQueue.add(file, methods);
+            }
+          }
+        }
+
         // Clear cache to force regeneration on next load
         cachedSchema = null;
 

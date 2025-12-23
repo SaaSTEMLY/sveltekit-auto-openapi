@@ -47,7 +47,7 @@ export const _config = {
 							$showErrorMessage: true,
 							schema: z
 								.object({
-									success: z.literal(false)
+									message: z.string()
 								})
 								.toJSONSchema()
 						}

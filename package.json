@@ -4,6 +4,9 @@
   "type": "module",
   "main": "dist/plugin/index.js",
   "types": "dist/plugin/index.d.ts",
+  "bin": {
+    "sveltekit-auto-openapi": "./dist/cli/index.js"
+  },
   "keywords": [
     "sveltekit",
     "openapi",
@@ -36,6 +39,9 @@
     "./scalar-module": {
       "types": "./dist/scalar-module/index.d.ts",
       "import": "./dist/scalar-module/index.js"
+    },
+    "./sync": {
+      "import": "./dist/cli/sync.js"
     }
   },
   "files": [
