@@ -18,7 +18,7 @@ SvelteKit Auto OpenAPI achieves type safety through:
 
 ## Key Type Utilities
 
-### ExtractSchemaType<T>
+### `ExtractSchemaType<T>`
 
 Extracts TypeScript type from a JSON Schema or StandardSchema object.
 
@@ -81,7 +81,7 @@ type Status = ExtractSchemaType<typeof StatusSchema>;
 // 'active'
 ```
 
-### ExtractSuccessResponseType<TMethod>
+### `ExtractSuccessResponseType<TMethod>`
 
 Extracts the TypeScript type for success responses (2XX status codes).
 
@@ -130,7 +130,7 @@ type SuccessResponse = ExtractSuccessResponseType<typeof methodConfig>;
 // { id: string; name: string } | { id: string }
 ```
 
-### ExtractErrorResponseType<TMethod>
+### `ExtractErrorResponseType<TMethod>`
 
 Extracts the TypeScript type for error responses (4XX, 5XX, and default).
 
@@ -179,7 +179,7 @@ type ErrorResponse = ExtractErrorResponseType<typeof methodConfig>;
 // { error: string } | { error: string; code: string }
 ```
 
-### ExtractValidatedInputs<TMethod>
+### `ExtractValidatedInputs<TMethod>`
 
 Extracts types for all validated request inputs.
 
@@ -243,7 +243,7 @@ type Inputs = ExtractValidatedInputs<typeof methodConfig>;
 
 Extract types for specific HTTP methods:
 
-#### ExtractSuccessResponseTypeForMethod<TConfig, TMethod>
+#### `ExtractSuccessResponseTypeForMethod<TConfig, TMethod>`
 
 ```typescript
 import type { ExtractSuccessResponseTypeForMethod } from 'sveltekit-auto-openapi/types';
@@ -254,7 +254,7 @@ type PostSuccess = ExtractSuccessResponseTypeForMethod<UserConfig, 'POST'>;
 type GetSuccess = ExtractSuccessResponseTypeForMethod<UserConfig, 'GET'>;
 ```
 
-#### ExtractErrorResponseTypeForMethod<TConfig, TMethod>
+#### `ExtractErrorResponseTypeForMethod<TConfig, TMethod>`
 
 ```typescript
 import type { ExtractErrorResponseTypeForMethod } from 'sveltekit-auto-openapi/types';
@@ -265,7 +265,7 @@ type PostErrors = ExtractErrorResponseTypeForMethod<UserConfig, 'POST'>;
 // Union of all 4XX/5XX response types for POST
 ```
 
-#### ExtractValidatedInputsForMethod<TConfig, TMethod>
+#### `ExtractValidatedInputsForMethod<TConfig, TMethod>`
 
 ```typescript
 import type { ExtractValidatedInputsForMethod } from 'sveltekit-auto-openapi/types';
@@ -276,7 +276,7 @@ type PostInputs = ExtractValidatedInputsForMethod<UserConfig, 'POST'>;
 // { body: ..., query: ..., headers: ..., etc. }
 ```
 
-### InjectedHelpers<Config, Method>
+### `InjectedHelpers<Config, Method>`
 
 The complete type injected into RequestEvent by the sync helper.
 
