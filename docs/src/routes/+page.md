@@ -4,7 +4,7 @@ tagline: ⚠️ Warning - This library is in early development (v0) and not reco
 actions:
   - label: Get Started
     type: primary
-    to: /
+    to: /introduction/quick-start/
   - label: View on GitHub
     type: secondary
     to: https://github.com/SaaSTEMLY/sveltekit-auto-openapi
@@ -20,40 +20,40 @@ features:
       type: iconify
       collection: carbon
       name: ibm-software-watsonx-data-analyze-and-process
-    link: /
+    link: /introduction/
   - title: Interactive Documentation
     description: Built-in Scalar integration for beautiful API references
     icon:
       type: iconify
       collection: carbon
       name: document-export
-    link: /
+    link: /fundamentals/scalar-module/
   - title: Zero Boilerplate
     description: Works directly with standard SvelteKit +server.ts files
     icon:
       type: iconify
       collection: carbon
       name: code
-    link: /
+    link: /introduction/quick-start/
   - title: Hot Reload
     description: OpenAPI schemas update instantly as you modify routes
     icon:
       type: iconify
       collection: carbon
       name: renew
-    link: /
+    link: /fundamentals/plugin/
   - title: Optimized for production
     description: Each file loads the validation that concerns it, nothing more
     icon:
       type: iconify
       collection: carbon
       name: lightning
-    link: /
+    link: /guides/best-practices/
   - title: Type Safety
     description: Full TypeScript support with type inference from schemas
     icon:
       type: iconify
       collection: vscode-icons
       name: file-type-typescript
-    link: /
+    link: /advanced/type-system/
 ---
