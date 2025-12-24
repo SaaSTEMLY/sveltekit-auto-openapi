@@ -2,6 +2,7 @@ import type { PluginOption, ViteDevServer } from "vite";
 import { generate } from "./generator.ts";
 import { transformServerCode } from "./transformer.ts";
 import fs from "fs/promises";
+import path from "path";
 import { injectTypesForRoute } from "./type-injector.ts";
 
 // Debug mode controlled by environment variable
@@ -11,6 +12,38 @@ function debug(...args: any[]) {
   if (DEBUG) {
     console.log(...args);
   }
+}
+
+// Helper function to recursively find all +server.ts files
+async function findAllServerFiles(dir: string): Promise<string[]> {
+  const results: string[] = [];
+
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        // Skip node_modules, .svelte-kit, and other build directories
+        if (
+          !entry.name.startsWith(".") &&
+          entry.name !== "node_modules" &&
+          entry.name !== "build"
+        ) {
+          const subResults = await findAllServerFiles(fullPath);
+          results.push(...subResults);
+        }
+      } else if (entry.name === "+server.ts") {
+        results.push(fullPath);
+      }
+    }
+  } catch (err) {
+    // Directory might not exist or be accessible
+    debug(`Could not scan directory ${dir}:`, err);
+  }
+
+  return results;
 }
 
 // Virtual module IDs following Vite best practices
@@ -64,6 +97,28 @@ export default function svelteOpenApi(opts?: {
 
     configureServer(_server) {
       server = _server;
+
+      // Inject types for all routes when dev server starts
+      // This runs after SvelteKit has generated the initial $types.d.ts files
+      server.httpServer?.once("listening", async () => {
+        debug("Dev server started, scanning for API routes...");
+
+        const routesDir = path.join(root, "src", "routes");
+        const serverFiles = await findAllServerFiles(routesDir);
+
+        debug(`Found ${serverFiles.length} +server.ts files`);
+
+        for (const serverPath of serverFiles) {
+          try {
+            const content = await fs.readFile(serverPath, "utf-8");
+            await injectTypesForRoute(serverPath, root, content);
+          } catch (err) {
+            debug(`Failed to inject types for ${serverPath}:`, err);
+          }
+        }
+
+        debug("✓ Initial type injection complete");
+      });
     },
 
     // Transform +server.ts files to auto-inject validation
