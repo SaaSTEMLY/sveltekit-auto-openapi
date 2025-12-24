@@ -17,7 +17,54 @@ const config = defineConfig({
           },
         ],
         sidebar: {
-          "/": [],
+          "/": [
+            {
+              title: "Introduction",
+              collapsible: true,
+              items: [
+                { title: "What is SvelteKit Auto OpenAPI?", to: "/introduction/" },
+                { title: "Quick Start", to: "/introduction/quick-start/" },
+              ],
+            },
+            {
+              title: "Fundamentals",
+              collapsible: true,
+              items: [
+                { title: "Overview", to: "/fundamentals/" },
+                { title: "Plugin Configuration", to: "/fundamentals/plugin/" },
+                { title: "Route Configuration", to: "/fundamentals/route-config/" },
+                { title: "Scalar Module", to: "/fundamentals/scalar-module/" },
+              ],
+            },
+            {
+              title: "Guides",
+              collapsible: true,
+              items: [
+                { title: "Validation", to: "/guides/validation/" },
+                { title: "Error Handling", to: "/guides/error-handling/" },
+                { title: "Best Practices", to: "/guides/best-practices/" },
+              ],
+            },
+            {
+              title: "Advanced",
+              collapsible: true,
+              items: [
+                { title: "Overview", to: "/advanced/" },
+                { title: "Virtual Modules", to: "/advanced/virtual-modules/" },
+                { title: "Sync Helper", to: "/advanced/sync-helper/" },
+                { title: "Validation Wrapper", to: "/advanced/validation-wrapper/" },
+                { title: "Type System", to: "/advanced/type-system/" },
+              ],
+            },
+            {
+              title: "Other",
+              collapsible: true,
+              items: [
+                { title: "Examples", to: "/examples/" },
+                { title: "Milestones", to: "/milestones/" },
+              ],
+            },
+          ],
         },
         github: "https://github.com/SaaSTEMLY/sveltekit-auto-openapi",
         logo: "/logo/main/pwa-512x512.png",
