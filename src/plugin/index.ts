@@ -115,7 +115,15 @@ export default function svelteOpenApi(opts?: PluginOpts) {
     name: "sveltekit-auto-openapi",
 
     config(config, env) {
-      // TODO: modify Vite config if needed
+      // Ensure virtual modules are handled in SSR builds
+      return {
+        ssr: {
+          noExternal: ['sveltekit-auto-openapi'],
+        },
+        optimizeDeps: {
+          exclude: ['sveltekit-auto-openapi'],
+        },
+      };
     },
 
     // Resolve virtual module for schemaPaths
