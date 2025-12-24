@@ -7,7 +7,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"sync": "svelte-kit sync && sveltekit-auto-openapi",
+		"sync": "svelte-kit sync",
 		"prepare": "bun sync || echo ''",
 		"check": "bun sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "bun sync && svelte-check --tsconfig ./tsconfig.json --watch",

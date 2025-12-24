@@ -328,23 +328,23 @@ async function _generateInternal(
 
   // Debug: Show final generated paths
   if (DEBUG) {
-    console.log("\n📊 Generated OpenAPI Paths:");
+    debug("\n📊 Generated OpenAPI Paths:");
     for (const [path, methods] of Object.entries(openApiPaths)) {
-      console.log(`\n  ${path}:`);
+      debug(`\n  ${path}:`);
       for (const [method, operation] of Object.entries(methods as any)) {
         const op = operation as any;
-        console.log(`    ${method.toUpperCase()}:`);
-        console.log(`      - summary: ${op.summary || "(none)"}`);
-        console.log(`      - parameters: ${op.parameters?.length || 0}`);
-        console.log(
+        debug(`    ${method.toUpperCase()}:`);
+        debug(`      - summary: ${op.summary || "(none)"}`);
+        debug(`      - parameters: ${op.parameters?.length || 0}`);
+        debug(
           `      - responses: ${
             Object.keys(op.responses || {}).join(", ") || "(none)"
           }`
         );
-        console.log(`      - requestBody: ${op.requestBody ? "yes" : "no"}`);
+        debug(`      - requestBody: ${op.requestBody ? "yes" : "no"}`);
       }
     }
-    console.log("");
+    debug("");
   }
 
   return { openApiPaths };

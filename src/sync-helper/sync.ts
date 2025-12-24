@@ -14,7 +14,7 @@ function debug(...args: any[]) {
 
 export async function sync(cwd: string = process.cwd()) {
   // Step 1: Inject types for all routes
-  console.log("[sveltekit-auto-openapi] Injecting types...");
+  debug("[sveltekit-auto-openapi] Injecting types...");
   try {
     const { glob } = await import("glob");
 
@@ -36,19 +36,11 @@ export async function sync(cwd: string = process.cwd()) {
       }
     }
 
-    console.log(
+    debug(
       `[sveltekit-auto-openapi] ✓ Type injection: ${successCount} routes, ${failCount} skipped`
     );
   } catch (err) {
     console.error("[sveltekit-auto-openapi] Failed to inject types:", err);
     process.exit(1);
   }
-}
-
-if (import.meta.main) {
-  const cwd = process.cwd();
-  sync(cwd).catch((err) => {
-    console.error("[sveltekit-auto-openapi] Error during sync:", err);
-    process.exit(1);
-  });
 }

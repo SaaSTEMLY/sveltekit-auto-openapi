@@ -79,7 +79,25 @@ svelteOpenApi({
 
 - `skipSchemaGeneration` - Set to `true` to disable OpenAPI schema generation. Useful if you only want runtime validation without documentation.
 
-### 3\. Create API Docs Route
+### 3\. Add generateAutoOpenApiTypes
+
+Import and run the function in `svelte.config.js` to automatically generate types on sync
+
+```ts
+// ...imports
+import { generateAutoOpenApiTypes } from 'sveltekit-auto-openapi/sync-helper';
+
+generateAutoOpenApiTypes();
+
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+	// ...sveltekit config
+};
+
+export default config;
+```
+
+### 4\. Create API Docs Route
 
 Expose your documentation at `src/routes/api-docs/[slug]/+server.ts`.
 
@@ -94,7 +112,7 @@ export const { GET, _config } = ScalarModule({
 });
 ```
 
-### 4\. Visit docs
+### 5\. Visit docs
 
 Thats it! Visit your docs at `/api-docs/scalar`
 

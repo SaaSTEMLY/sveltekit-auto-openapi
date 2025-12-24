@@ -1,7 +1,10 @@
+import { generateAutoOpenApiTypes } from 'sveltekit-auto-openapi/sync-helper';
 import adapter from '@sveltejs/adapter-vercel';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { mdsvex, escapeSvelte } from 'mdsvex';
 import { createHighlighter } from 'shiki';
+
+generateAutoOpenApiTypes();
 
 const theme = 'github-dark';
 const highlighter = await createHighlighter({
