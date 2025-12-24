@@ -7,7 +7,7 @@ description: Configure individual routes with OpenAPI schemas and validation
 
 The `_config` export is how you configure individual API routes with OpenAPI schemas and runtime validation. It's the primary interface between your code and the plugin.
 
-## The _config Export
+## The \_config Export
 
 Export a `_config` object from any `+server.ts` file to:
 
@@ -18,15 +18,15 @@ Export a `_config` object from any `+server.ts` file to:
 
 ```typescript
 // src/routes/api/users/+server.ts
-import type { RouteConfig } from 'sveltekit-auto-openapi/types';
+import type { RouteConfig } from "sveltekit-auto-openapi/types";
 
 export const _config = {
   openapiOverride: {
     POST: {
-      summary: 'Create user',
+      summary: "Create user",
       // ... OpenAPI schema
-    }
-  }
+    },
+  },
 } satisfies RouteConfig;
 
 export async function POST({ validated, json, error }) {
@@ -37,6 +37,7 @@ export async function POST({ validated, json, error }) {
 **Why it exists:**
 
 Without `_config`, the plugin can only infer basic schemas from type annotations. With `_config`, you get:
+
 - Runtime validation
 - Detailed documentation
 - Type-safe helpers (`validated`, `json()`, `error()`)
@@ -96,13 +97,13 @@ type OperationObjectWithValidation = {
 
     // Standard OpenAPI content
     content?: {
-      'application/json'?: MediaTypeWithValidation;
+      "application/json"?: MediaTypeWithValidation;
     };
   };
 
   responses?: {
-    '200'?: ResponseObjectWithValidation;
-    '400'?: ResponseObjectWithValidation;
+    "200"?: ResponseObjectWithValidation;
+    "400"?: ResponseObjectWithValidation;
     // ... other status codes
   };
 
@@ -122,63 +123,63 @@ Follow standard OpenAPI 3.0 structure for maximum compatibility:
 export const _config = {
   openapiOverride: {
     POST: {
-      summary: 'Create user',
-      description: 'Creates a new user account',
-      tags: ['users'],
+      summary: "Create user",
+      description: "Creates a new user account",
+      tags: ["users"],
 
       requestBody: {
         required: true,
         content: {
-          'application/json': {
+          "application/json": {
             schema: {
-              type: 'object',
+              type: "object",
               properties: {
                 email: {
-                  type: 'string',
-                  format: 'email'
+                  type: "string",
+                  format: "email",
                 },
                 name: {
-                  type: 'string',
-                  minLength: 1
-                }
+                  type: "string",
+                  minLength: 1,
+                },
               },
-              required: ['email', 'name']
-            }
-          }
-        }
+              required: ["email", "name"],
+            },
+          },
+        },
       },
 
       responses: {
-        '201': {
-          description: 'User created successfully',
+        "201": {
+          description: "User created successfully",
           content: {
-            'application/json': {
+            "application/json": {
               schema: {
-                type: 'object',
+                type: "object",
                 properties: {
-                  id: { type: 'string' },
-                  email: { type: 'string' }
-                }
-              }
-            }
-          }
+                  id: { type: "string" },
+                  email: { type: "string" },
+                },
+              },
+            },
+          },
         },
-        '400': {
-          description: 'Invalid request',
+        "400": {
+          description: "Invalid request",
           content: {
-            'application/json': {
+            "application/json": {
               schema: {
-                type: 'object',
+                type: "object",
                 properties: {
-                  message: { type: 'string' }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+                  message: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 } satisfies RouteConfig;
 ```
 
@@ -204,8 +205,9 @@ requestBody: {
 ```
 
 Access validated headers:
+
 ```typescript
-const { 'x-api-key': apiKey } = validated.headers;
+const { "x-api-key": apiKey } = validated.headers;
 ```
 
 #### $query - Query Parameter Validation
@@ -225,6 +227,7 @@ requestBody: {
 ```
 
 Access validated query params:
+
 ```typescript
 const { page, limit } = validated.query;
 ```
@@ -247,6 +250,7 @@ requestBody: {
 ```
 
 Access validated path params:
+
 ```typescript
 const { id } = validated.pathParams;
 ```
@@ -267,6 +271,7 @@ requestBody: {
 ```
 
 Access validated cookies:
+
 ```typescript
 const { session } = validated.cookies;
 ```
@@ -286,11 +291,12 @@ The validation wrapper will throw if your handler returns a status code not in t
 
 ## Validation Flags
 
-### $_skipValidation
+### $\_skipValidation
 
 Skip validation for a specific schema or field:
 
 **Skip entire request body validation:**
+
 ```typescript
 requestBody: {
   content: {
@@ -303,6 +309,7 @@ requestBody: {
 ```
 
 **Skip specific parts:**
+
 ```typescript
 requestBody: {
   $headers: {
@@ -317,6 +324,7 @@ requestBody: {
 ```
 
 **Skip response validation:**
+
 ```typescript
 responses: {
   '200': {
@@ -330,11 +338,12 @@ responses: {
 }
 ```
 
-### $_returnDetailedError
+### $\_returnDetailedError
 
 Return detailed validation errors instead of simple messages:
 
 **Enable for request body:**
+
 ```typescript
 requestBody: {
   content: {
@@ -347,14 +356,16 @@ requestBody: {
 ```
 
 **Simple error (default):**
-```json
+
+```ts
 {
   "error": "Validation failed"
 }
 ```
 
 **Detailed error:**
-```json
+
+```ts
 {
   "error": "Validation failed",
   "details": [
@@ -375,7 +386,7 @@ No `_config` needed - plugin infers from types:
 
 ```typescript
 // src/routes/api/hello/+server.ts
-import { json } from '@sveltejs/kit';
+import { json } from "@sveltejs/kit";
 
 export async function POST({ request }) {
   const { name }: { name: string } = await request.json();
@@ -384,6 +395,7 @@ export async function POST({ request }) {
 ```
 
 **What you get:**
+
 - Basic OpenAPI schema from type annotations
 - No runtime validation
 - Standard SvelteKit RequestEvent
@@ -394,53 +406,55 @@ Using Zod for schemas (you can also use TypeBox, Valibot, ArkType):
 
 ```typescript
 // src/routes/api/users/+server.ts
-import { z } from 'zod';
-import type { RouteConfig } from 'sveltekit-auto-openapi/types';
+import { z } from "zod";
+import type { RouteConfig } from "sveltekit-auto-openapi/types";
 
 const UserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
-  age: z.number().int().min(18).optional()
+  age: z.number().int().min(18).optional(),
 });
 
 export const _config = {
   openapiOverride: {
     POST: {
-      summary: 'Create user',
-      description: 'Creates a new user account',
+      summary: "Create user",
+      description: "Creates a new user account",
 
       requestBody: {
         content: {
-          'application/json': {
-            schema: UserSchema.toJSONSchema()
-          }
-        }
+          "application/json": {
+            schema: UserSchema.toJSONSchema(),
+          },
+        },
       },
 
       responses: {
-        '201': {
-          description: 'User created',
+        "201": {
+          description: "User created",
           content: {
-            'application/json': {
-              schema: z.object({
-                id: z.string(),
-                email: z.string()
-              }).toJSONSchema()
-            }
-          }
-        }
-      }
-    }
-  }
+            "application/json": {
+              schema: z
+                .object({
+                  id: z.string(),
+                  email: z.string(),
+                })
+                .toJSONSchema(),
+            },
+          },
+        },
+      },
+    },
+  },
 } satisfies RouteConfig;
 
 export async function POST({ validated, json, error }) {
-  const user = validated.body;  // Fully typed!
+  const user = validated.body; // Fully typed!
 
   // Create user logic...
-  const newUser = { id: '123', email: user.email };
+  const newUser = { id: "123", email: user.email };
 
-  return json(newUser);  // Type-checked against 201 schema
+  return json(newUser); // Type-checked against 201 schema
 }
 ```
 
@@ -450,106 +464,106 @@ Pure JSON Schema without dependencies:
 
 ```typescript
 // src/routes/api/products/+server.ts
-import type { RouteConfig } from 'sveltekit-auto-openapi/types';
+import type { RouteConfig } from "sveltekit-auto-openapi/types";
 
 export const _config = {
   openapiOverride: {
     POST: {
-      summary: 'Create product',
+      summary: "Create product",
 
       requestBody: {
         // Validate headers
         $headers: {
           schema: {
-            type: 'object',
+            type: "object",
             properties: {
-              'x-api-key': { type: 'string' }
+              "x-api-key": { type: "string" },
             },
-            required: ['x-api-key']
-          }
+            required: ["x-api-key"],
+          },
         },
 
         // Validate query params
         $query: {
           schema: {
-            type: 'object',
+            type: "object",
             properties: {
-              draft: { type: 'boolean' }
-            }
-          }
+              draft: { type: "boolean" },
+            },
+          },
         },
 
         // Validate body
         content: {
-          'application/json': {
-            $_returnDetailedError: true,  // Detailed errors for debugging
+          "application/json": {
+            $_returnDetailedError: true, // Detailed errors for debugging
             schema: {
-              type: 'object',
+              type: "object",
               properties: {
-                name: { type: 'string', minLength: 1 },
-                price: { type: 'number', minimum: 0 },
+                name: { type: "string", minLength: 1 },
+                price: { type: "number", minimum: 0 },
                 category: {
-                  type: 'string',
-                  enum: ['electronics', 'clothing', 'food']
-                }
+                  type: "string",
+                  enum: ["electronics", "clothing", "food"],
+                },
               },
-              required: ['name', 'price', 'category'],
-              additionalProperties: false
-            }
-          }
-        }
+              required: ["name", "price", "category"],
+              additionalProperties: false,
+            },
+          },
+        },
       },
 
       responses: {
-        '201': {
-          description: 'Product created',
+        "201": {
+          description: "Product created",
           content: {
-            'application/json': {
+            "application/json": {
               schema: {
-                type: 'object',
+                type: "object",
                 properties: {
-                  id: { type: 'string' },
-                  name: { type: 'string' }
-                }
-              }
-            }
-          }
+                  id: { type: "string" },
+                  name: { type: "string" },
+                },
+              },
+            },
+          },
         },
-        '400': {
-          description: 'Validation error',
+        "400": {
+          description: "Validation error",
           content: {
-            'application/json': {
+            "application/json": {
               schema: {
-                type: 'object',
+                type: "object",
                 properties: {
-                  error: { type: 'string' },
+                  error: { type: "string" },
                   details: {
-                    type: 'array',
-                    items: { type: 'object' }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+                    type: "array",
+                    items: { type: "object" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 } satisfies RouteConfig;
 
 export async function POST({ validated, json, error }) {
-  const { 'x-api-key': apiKey } = validated.headers;
+  const { "x-api-key": apiKey } = validated.headers;
   const { draft } = validated.query;
   const product = validated.body;
 
   // All inputs are validated before this runs
 
   if (apiKey !== process.env.API_KEY) {
-    error(401, { error: 'Invalid API key' });
+    error(401, { error: "Invalid API key" });
   }
 
   // Create product...
-  const newProduct = { id: '456', name: product.name };
+  const newProduct = { id: "456", name: product.name };
 
   return json(newProduct);
 }
@@ -561,118 +575,118 @@ Combining everything:
 
 ```typescript
 // src/routes/api/orders/[id]/+server.ts
-import type { RouteConfig } from 'sveltekit-auto-openapi/types';
+import type { RouteConfig } from "sveltekit-auto-openapi/types";
 
 export const _config = {
   openapiOverride: {
     PUT: {
-      summary: 'Update order',
-      description: 'Updates an existing order',
-      tags: ['orders'],
+      summary: "Update order",
+      description: "Updates an existing order",
+      tags: ["orders"],
 
       // Only allow these status codes
-      $allowedStatusCodes: ['200', '400', '404'],
+      $allowedStatusCodes: ["200", "400", "404"],
 
       requestBody: {
         // Validate path parameters
         $pathParams: {
           schema: {
-            type: 'object',
+            type: "object",
             properties: {
-              id: { type: 'string', pattern: '^[0-9]+$' }
+              id: { type: "string", pattern: "^[0-9]+$" },
             },
-            required: ['id']
-          }
+            required: ["id"],
+          },
         },
 
         // Validate headers
         $headers: {
-          $_skipValidation: false,  // Explicitly enable
-          $_returnDetailedError: false,  // Simple errors for security
+          $_skipValidation: false, // Explicitly enable
+          $_returnDetailedError: false, // Simple errors for security
           schema: {
-            type: 'object',
+            type: "object",
             properties: {
-              'authorization': { type: 'string' }
+              authorization: { type: "string" },
             },
-            required: ['authorization']
-          }
+            required: ["authorization"],
+          },
         },
 
         // Validate query
         $query: {
           schema: {
-            type: 'object',
+            type: "object",
             properties: {
-              notify: { type: 'boolean' }
-            }
-          }
+              notify: { type: "boolean" },
+            },
+          },
         },
 
         // Validate body
         content: {
-          'application/json': {
-            $_returnDetailedError: true,  // Detailed for debugging
+          "application/json": {
+            $_returnDetailedError: true, // Detailed for debugging
             schema: {
-              type: 'object',
+              type: "object",
               properties: {
                 status: {
-                  type: 'string',
-                  enum: ['pending', 'processing', 'shipped', 'delivered']
+                  type: "string",
+                  enum: ["pending", "processing", "shipped", "delivered"],
                 },
-                trackingNumber: { type: 'string' }
+                trackingNumber: { type: "string" },
               },
-              required: ['status']
-            }
-          }
-        }
+              required: ["status"],
+            },
+          },
+        },
       },
 
       responses: {
-        '200': {
-          description: 'Order updated',
+        "200": {
+          description: "Order updated",
           content: {
-            'application/json': {
-              $_skipValidation: true,  // Skip response validation
+            "application/json": {
+              $_skipValidation: true, // Skip response validation
               schema: {
-                type: 'object',
+                type: "object",
                 properties: {
-                  id: { type: 'string' },
-                  status: { type: 'string' }
-                }
-              }
-            }
-          }
+                  id: { type: "string" },
+                  status: { type: "string" },
+                },
+              },
+            },
+          },
         },
-        '400': {
-          description: 'Invalid request',
+        "400": {
+          description: "Invalid request",
           content: {
-            'application/json': {
+            "application/json": {
               schema: {
-                type: 'object',
+                type: "object",
                 properties: {
-                  error: { type: 'string' },
-                  details: { type: 'array' }
-                }
-              }
-            }
-          }
+                  error: { type: "string" },
+                  details: { type: "array" },
+                },
+              },
+            },
+          },
         },
-        '404': {
-          description: 'Order not found',
+        "404": {
+          description: "Order not found",
           content: {
-            'application/json': {
+            "application/json": {
               schema: {
-                type: 'object',
+                type: "object",
                 properties: {
-                  error: { type: 'string' }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+                  error: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 } satisfies RouteConfig;
 
 export async function PUT({ params, validated, json, error }) {
@@ -684,13 +698,13 @@ export async function PUT({ params, validated, json, error }) {
 
   // Verify auth
   if (!isValidToken(authorization)) {
-    error(401, { error: 'Unauthorized' });
+    error(401, { error: "Unauthorized" });
   }
 
   // Find order
   const order = await findOrder(id);
   if (!order) {
-    error(404, { error: 'Order not found' });
+    error(404, { error: "Order not found" });
   }
 
   // Update order
@@ -718,45 +732,45 @@ Define shared schemas once:
 ```typescript
 // src/lib/schemas.ts
 export const ErrorSchema = {
-  type: 'object',
+  type: "object",
   properties: {
-    error: { type: 'string' },
-    code: { type: 'string' }
+    error: { type: "string" },
+    code: { type: "string" },
   },
-  required: ['error']
+  required: ["error"],
 } as const;
 
 export const PaginationQuerySchema = {
-  type: 'object',
+  type: "object",
   properties: {
-    page: { type: 'number', minimum: 1, default: 1 },
-    limit: { type: 'number', minimum: 1, maximum: 100, default: 20 }
-  }
+    page: { type: "number", minimum: 1, default: 1 },
+    limit: { type: "number", minimum: 1, maximum: 100, default: 20 },
+  },
 } as const;
 ```
 
 Reuse across routes:
 
 ```typescript
-import { ErrorSchema, PaginationQuerySchema } from '$lib/schemas';
+import { ErrorSchema, PaginationQuerySchema } from "$lib/schemas";
 
 export const _config = {
   openapiOverride: {
     GET: {
       requestBody: {
-        $query: { schema: PaginationQuerySchema }
+        $query: { schema: PaginationQuerySchema },
       },
       responses: {
-        '400': {
+        "400": {
           content: {
-            'application/json': {
-              schema: ErrorSchema
-            }
-          }
-        }
-      }
-    }
-  }
+            "application/json": {
+              schema: ErrorSchema,
+            },
+          },
+        },
+      },
+    },
+  },
 } satisfies RouteConfig;
 ```
 
@@ -767,12 +781,16 @@ Always use `satisfies RouteConfig`:
 ```typescript
 // ✅ Good - catches typos and type errors
 export const _config = {
-  openapiOverride: { /* ... */ }
+  openapiOverride: {
+    /* ... */
+  },
 } satisfies RouteConfig;
 
 // ❌ Bad - no type checking
 export const _config = {
-  openapiOverride: { /* ... */ }
+  openapiOverride: {
+    /* ... */
+  },
 };
 ```
 

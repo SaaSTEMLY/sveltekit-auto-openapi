@@ -13,14 +13,14 @@ Import and add the plugin to your `vite.config.ts`:
 
 ```typescript
 // vite.config.ts
-import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
-import svelteOpenApi from 'sveltekit-auto-openapi/plugin';
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import svelteOpenApi from "sveltekit-auto-openapi/plugin";
 
 export default defineConfig({
   plugins: [
     sveltekit(),
-    svelteOpenApi(),  // ← Add after sveltekit()
+    svelteOpenApi(), // ← Add after sveltekit()
   ],
 });
 ```
@@ -36,7 +36,7 @@ svelteOpenApi({
   skipAutoValidation: false,
   skipValidationDefault: undefined,
   returnsDetailedErrorDefault: undefined,
-})
+});
 ```
 
 ### `showDebugLogs`
@@ -49,10 +49,11 @@ Enables detailed console logging for plugin operations. Useful for debugging or 
 ```typescript
 svelteOpenApi({
   showDebugLogs: true,
-})
+});
 ```
 
 When enabled, you'll see logs for:
+
 - Routes discovered
 - Schemas extracted from AST
 - Virtual module generation
@@ -60,6 +61,7 @@ When enabled, you'll see logs for:
 - Type synchronization
 
 **Use cases:**
+
 - Debugging why a route isn't being detected
 - Understanding schema inference
 - Troubleshooting validation issues
@@ -72,23 +74,26 @@ When enabled, you'll see logs for:
 Controls automatic schema generation. Can disable both AST inference and config extraction, or each individually.
 
 **Disable everything:**
+
 ```typescript
 svelteOpenApi({
   skipAutoGenerateSchemaPaths: true,
-})
+});
 ```
 
 **Disable selectively:**
+
 ```typescript
 svelteOpenApi({
   skipAutoGenerateSchemaPaths: {
-    fromAst: true,      // Skip AST inference, only use _config
-    fromConfig: false,  // Still extract from _config exports
+    fromAst: true, // Skip AST inference, only use _config
+    fromConfig: false, // Still extract from _config exports
   },
-})
+});
 ```
 
 **Use cases:**
+
 - **Skip AST only**: When you want explicit configuration for all routes
 - **Skip config only**: When testing AST inference alone
 - **Skip both**: When using manual schema definition via `mergePaths` in ScalarModule
@@ -103,16 +108,18 @@ Completely disables runtime validation injection. The plugin will still generate
 ```typescript
 svelteOpenApi({
   skipAutoValidation: true,
-})
+});
 ```
 
 When enabled:
+
 - No validation wrappers are injected
 - `validated`, `json()`, and `error()` helpers are not available
 - OpenAPI schemas are still generated for documentation
 - Routes behave like standard SvelteKit endpoints
 
 **Use cases:**
+
 - Documentation-only mode
 - Performance testing without validation overhead
 - Gradual migration (docs first, validation later)
@@ -125,43 +132,47 @@ When enabled:
 Sets the default `$_skipValidation` flag for all routes. Can be overridden per-route in `_config`.
 
 **Skip all validation:**
+
 ```typescript
 svelteOpenApi({
   skipValidationDefault: true,
-})
+});
 ```
 
 **Skip requests or responses:**
+
 ```typescript
 svelteOpenApi({
   skipValidationDefault: {
-    request: false,   // Validate requests
-    response: true,   // Skip response validation
+    request: false, // Validate requests
+    response: true, // Skip response validation
   },
-})
+});
 ```
 
 **Granular control:**
+
 ```typescript
 svelteOpenApi({
   skipValidationDefault: {
     request: {
-      headers: true,      // Skip header validation
-      query: true,        // Skip query validation
-      pathParams: false,  // Validate path params
-      body: false,        // Validate body
-      cookies: true,      // Skip cookie validation
+      headers: true, // Skip header validation
+      query: true, // Skip query validation
+      pathParams: false, // Validate path params
+      body: false, // Validate body
+      cookies: true, // Skip cookie validation
     },
     response: {
-      headers: true,  // Skip response header validation
-      body: false,    // Validate response body
-      cookies: true,  // Skip response cookie validation
+      headers: true, // Skip response header validation
+      body: false, // Validate response body
+      cookies: true, // Skip response cookie validation
     },
   },
-})
+});
 ```
 
 **Use cases:**
+
 - **Skip responses globally**: Most apps don't validate responses in production
 - **Skip headers/cookies**: When you trust your middleware to handle these
 - **Validate body only**: Most critical validation point
@@ -174,47 +185,52 @@ svelteOpenApi({
 Sets the default `$_returnDetailedError` flag for validation errors. Detailed errors include field paths and validation keywords.
 
 **Return detailed errors for everything:**
+
 ```typescript
 svelteOpenApi({
   returnsDetailedErrorDefault: true,
-})
+});
 ```
 
 **Detailed errors for requests only:**
+
 ```typescript
 svelteOpenApi({
   returnsDetailedErrorDefault: {
-    request: true,   // Detailed request errors
+    request: true, // Detailed request errors
     response: false, // Simple response errors
   },
-})
+});
 ```
 
 **Granular control:**
+
 ```typescript
 svelteOpenApi({
   returnsDetailedErrorDefault: {
     request: {
-      headers: false,     // Simple header errors
-      query: true,        // Detailed query errors
-      pathParams: false,  // Simple path param errors
-      body: true,         // Detailed body errors
-      cookies: false,     // Simple cookie errors
+      headers: false, // Simple header errors
+      query: true, // Detailed query errors
+      pathParams: false, // Simple path param errors
+      body: true, // Detailed body errors
+      cookies: false, // Simple cookie errors
     },
-    response: false,  // Simple response errors
+    response: false, // Simple response errors
   },
-})
+});
 ```
 
 **Simple error format:**
-```json
+
+```ts
 {
   "error": "Validation failed"
 }
 ```
 
 **Detailed error format:**
-```json
+
+```ts
 {
   "error": "Validation failed",
   "details": [
@@ -228,6 +244,7 @@ svelteOpenApi({
 ```
 
 **Use cases:**
+
 - **Development**: Detailed errors help debugging
 - **Production**: Simple errors avoid exposing schema details
 - **Public APIs**: Detailed errors improve developer experience
@@ -251,6 +268,7 @@ For each route, the plugin extracts schemas using two approaches:
 **A. Config Extraction**
 
 If a `_config` export exists:
+
 - Dynamically imports the route file
 - Extracts `_config.openapiOverride`
 - Uses these schemas directly
@@ -258,6 +276,7 @@ If a `_config` export exists:
 **B. AST Analysis**
 
 For methods without `_config`:
+
 - Parses TypeScript AST using `ts-morph`
 - Finds HTTP method functions/constants
 - Extracts type annotations from `request.json<Type>()`
@@ -273,14 +292,19 @@ The plugin generates a virtual module:
 // virtual:sveltekit-auto-openapi/schema-paths
 export default {
   "/api/users": {
-    "POST": { /* OpenAPI OperationObject */ },
-    "GET": { /* OpenAPI OperationObject */ }
+    POST: {
+      /* OpenAPI OperationObject */
+    },
+    GET: {
+      /* OpenAPI OperationObject */
+    },
   },
   // ... all routes
 };
 ```
 
 This module is:
+
 - Available via import (see [Virtual Modules](/advanced/virtual-modules/))
 - Used by ScalarModule to serve documentation
 - Cached and invalidated on file changes (HMR support)
@@ -294,6 +318,7 @@ For routes with `_config`, the plugin:
 3. Provides typed `json()` and `error()` helpers
 
 **Before transformation:**
+
 ```typescript
 export async function POST({ request }) {
   const data = await request.json();
@@ -302,8 +327,9 @@ export async function POST({ request }) {
 ```
 
 **After transformation:**
+
 ```typescript
-import { validationWrapper } from 'sveltekit-auto-openapi/validation-wrapper';
+import { validationWrapper } from "sveltekit-auto-openapi/validation-wrapper";
 
 const __original_POST = async ({ request }) => {
   const data = await request.json();
@@ -312,7 +338,7 @@ const __original_POST = async ({ request }) => {
 
 export const POST = await validationWrapper(
   _config,
-  'POST',
+  "POST",
   __original_POST,
   skipValidationDefault,
   returnsDetailedErrorDefault
@@ -333,6 +359,7 @@ The plugin triggers type sync which:
 The plugin fully supports HMR during development:
 
 **File change detected:**
+
 ```
 1. Plugin invalidates virtual module cache
 2. Virtual module is regenerated with updated schemas
@@ -366,11 +393,12 @@ Generate docs without validation:
 
 ```typescript
 svelteOpenApi({
-  skipAutoValidation: true,  // No validation wrappers
-})
+  skipAutoValidation: true, // No validation wrappers
+});
 ```
 
 Routes will:
+
 - Generate OpenAPI schemas ✓
 - Show up in documentation ✓
 - NOT validate requests ✗
@@ -383,12 +411,13 @@ Require `_config` for all routes:
 ```typescript
 svelteOpenApi({
   skipAutoGenerateSchemaPaths: {
-    fromAst: true,  // No AST inference
+    fromAst: true, // No AST inference
   },
-})
+});
 ```
 
 Routes without `_config`:
+
 - Won't appear in OpenAPI schema
 - Won't have validation
 - Behave like standard SvelteKit routes
@@ -398,9 +427,9 @@ Routes without `_config`:
 Use different settings per environment:
 
 ```typescript
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === "development";
 
 export default defineConfig({
   plugins: [
@@ -408,11 +437,11 @@ export default defineConfig({
     svelteOpenApi({
       showDebugLogs: isDev,
       returnsDetailedErrorDefault: {
-        request: isDev,  // Detailed errors in dev only
+        request: isDev, // Detailed errors in dev only
         response: false,
       },
       skipValidationDefault: {
-        response: !isDev,  // Skip response validation in production
+        response: !isDev, // Skip response validation in production
       },
     }),
   ],
@@ -424,6 +453,7 @@ export default defineConfig({
 ### Plugin not detecting routes
 
 **Check:**
+
 - Files are named `+server.ts` (not `.js`)
 - Files are in `src/routes/` directory
 - Enable `showDebugLogs` to see what's discovered
@@ -431,6 +461,7 @@ export default defineConfig({
 ### Virtual module not updating
 
 **Solution:**
+
 - Restart dev server
 - Check HMR is working (`vite:hmr` in console)
 - Clear `.svelte-kit` directory
@@ -438,6 +469,7 @@ export default defineConfig({
 ### Types not available
 
 **Solution:**
+
 - Run `bunx svelte-kit sync`
 - Ensure `generateAutoOpenApiTypes()` is in `svelte.config.js`
 - Check `.svelte-kit/types` was generated
@@ -445,6 +477,7 @@ export default defineConfig({
 ### Validation not working
 
 **Check:**
+
 - `_config` is exported from route
 - `skipAutoValidation` is not `true`
 - Route handler uses injected helpers (`validated`, etc.)
