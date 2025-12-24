@@ -7,19 +7,18 @@ export const _config = {
 			summary: 'Create user',
 			description: 'Creates a new user with email',
 
-			// Validate custom properties with $ prefix
-			$headers: {
-				$showErrorMessage: true,
-				$skipValidation: false,
-				schema: z.looseObject({ 'x-api-key': z.string() }).toJSONSchema()
-			},
-
 			// Validate request body (standard OpenAPI structure)
 			requestBody: {
+				// Validate custom properties with $ prefix
+				$headers: {
+					$_returnDetailedError: true,
+					$_skipValidation: false,
+					schema: z.looseObject({ 'x-api-key': z.string() }).toJSONSchema()
+				},
 				content: {
 					'application/json': {
-						$showErrorMessage: true,
-						$skipValidation: false,
+						$_returnDetailedError: true,
+						$_skipValidation: false,
 						schema: z.object({ email: z.email() }).toJSONSchema()
 					}
 				}
@@ -31,7 +30,7 @@ export const _config = {
 					description: 'Success',
 					content: {
 						'application/json': {
-							$showErrorMessage: true,
+							$_returnDetailedError: true,
 							schema: z
 								.object({
 									success: z.literal(true)
@@ -44,7 +43,7 @@ export const _config = {
 					description: 'Success',
 					content: {
 						'application/json': {
-							$showErrorMessage: true,
+							$_returnDetailedError: true,
 							schema: z
 								.object({
 									message: z.string()

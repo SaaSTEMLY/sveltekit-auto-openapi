@@ -59,42 +59,36 @@ bun install -D sveltekit-auto-openapi
 
 Add the plugin to `vite.config.ts` to enable schema generation.
 
-```ts
-import { sveltekit } from "@sveltejs/kit/vite";
-import { defineConfig } from "vite";
-import svelteOpenApi from "sveltekit-auto-openapi/plugin";
+```diff
+  import { sveltekit } from "@sveltejs/kit/vite";
+  import { defineConfig } from "vite";
++ import svelteOpenApi from "sveltekit-auto-openapi/plugin";
 
-export default defineConfig({
-  plugins: [sveltekit(), svelteOpenApi()],
-});
+  export default defineConfig({
+    plugins: [
+      sveltekit(),
++     svelteOpenApi(),
+    ],
+  });
 ```
-
-**Plugin Options:**
-
-```ts
-svelteOpenApi({
-  skipSchemaGeneration: false, // Skip OpenAPI schema generation (default: false)
-});
-```
-
-- `skipSchemaGeneration` - Set to `true` to disable OpenAPI schema generation. Useful if you only want runtime validation without documentation.
 
 ### 3\. Add generateAutoOpenApiTypes
 
 Import and run the function in `svelte.config.js` to automatically generate types on sync
 
-```ts
-// ...imports
-import { generateAutoOpenApiTypes } from "sveltekit-auto-openapi/sync-helper";
+```diff
+  import adapter from '@sveltejs/adapter-vercel';
+  // ...imports
++ import { generateAutoOpenApiTypes } from "sveltekit-auto-openapi/sync-helper";
 
-generateAutoOpenApiTypes();
++ generateAutoOpenApiTypes();
 
-/** @type {import('@sveltejs/kit').Config} */
-const config = {
-  // ...sveltekit config
-};
+  /** @type {import('@sveltejs/kit').Config} */
+  const config = {
+    // ...sveltekit config
+  };
 
-export default config;
+  export default config;
 ```
 
 ### 4\. Create API Docs Route
@@ -158,17 +152,16 @@ export const _config = {
       summary: "Create user",
       description: "Creates a new user with email",
 
-      // Validate custom properties with $ prefix
-      $headers: {
-        $showErrorMessage: true,
-        schema: z.object({ "x-api-key": z.string() }).toJSONSchema(),
-      },
-
       // Validate request body (standard OpenAPI structure)
       requestBody: {
+        // Validate custom properties with $ prefix
+        $headers: {
+          $_returnDetailedError: true,
+          schema: z.object({ "x-api-key": z.string() }).toJSONSchema(),
+        },
         content: {
           "application/json": {
-            $showErrorMessage: true,
+            $_returnDetailedError: true,
             schema: z.object({ email: z.string().email() }).toJSONSchema(),
           },
         },
@@ -180,7 +173,7 @@ export const _config = {
           description: "Success",
           content: {
             "application/json": {
-              $showErrorMessage: true,
+              $_returnDetailedError: true,
               schema: z.object({ success: z.boolean() }).toJSONSchema(),
             },
           },
@@ -203,17 +196,19 @@ export async function POST({ validated, json, error }) {
 
 **Validation Flags:**
 
-- `$showErrorMessage` - Show detailed validation errors (defaults to `true` in dev, `false` in prod)
-- `$skipValidation` - Skip validation for this schema (defaults to `false`)
+- `$_returnDetailedError` - Show detailed validation errors (defaults to `false`)
+- `$_skipValidation` - Skip validation for this schema (defaults to `false`)
 
 **Supported Validation Properties:**
 
-- `$headers` - Validate request headers
-- `$query` - Validate query parameters
-- `$pathParams` - Validate path parameters
-- `$cookies` - Validate cookies
+- `requestBody.$headers` - Validate and add schema for request headers
+- `requestBody.$query` - Validate and add schema for request query parameters
+- `requestBody.$pathParams` - Validate and add schema for request path parameters
+- `requestBody.$cookies` - Validate and add schema for request cookies
 - `requestBody.content['application/json']` - Validate request body
 - `responses[statusCode].content['application/json']` - Validate response body
+- `responses[statusCode].$headers` - Validate and add schema for response headers
+- `responses[statusCode].$cookies` - Validate and add schema for response cookies
 
 ### Level 3: Using Raw JSON Schema
 
@@ -229,7 +224,7 @@ export const _config = {
       post: {
         tags: ["Default"],
 
-        // this does not get validated, use $headers/$pathParameters/$query/$cookies to enable validation
+        // "parameters" property does not get validated, use requestBody.$headers/requestBody.$pathParameters/requestBody.$query/requestBody.$cookies to enable validation
         parameters: [
           {
             name: "x-api-key",
@@ -243,8 +238,8 @@ export const _config = {
         requestBody: {
           content: {
             "application/json": {
-              $showErrorMessage: true,
-              $skipValidation: false,
+              $_returnDetailedError: true,
+              $_skipValidation: false,
               schema: {
                 type: "object",
                 properties: {
@@ -267,8 +262,8 @@ export const _config = {
             description: "Success",
             content: {
               "application/json": {
-                $showErrorMessage: true,
-                $skipValidation: false,
+                $_returnDetailedError: true,
+                $_skipValidation: false,
                 schema: {
                   type: "object",
                   properties: {

@@ -6,9 +6,6 @@ import { OpenAPIObject, OpenAPISchema } from "./openapiValidationSchema.ts";
 import z from "zod";
 import type { RouteConfig } from "../types/index.ts";
 
-/**
- * @property disableOpenApi - If true, disables the OpenAPI schema endpoint.
- */
 interface ScalarModuleOptions {
   /**
    * @description If true, disables the OpenAPI schema endpoint.
@@ -27,21 +24,21 @@ interface ScalarModuleOptions {
   showDetailedDocsSchema?: boolean;
   /**
    * @description If showDetailedDocsSchema is true, set skipDocsValidation to true ti skips validation of the OpenAPI schema at runtime.
-   * @default false
+   * @default true
    */
   skipDocsValidation?: boolean;
   /**
-   * @description Options for generating the OpenAPI schema.
-   * @default {}
+   * @description Options for generating the OpenAPI schema. Settings here will override defaults.
+   * @default { openapi: "3.0.0", info: { title: "API Documentation", version: "1.0.0" } }
    */
   openApiOpts?: Omit<OpenAPIV3.Document, "paths"> & {
     paths?: OpenAPIV3.PathsObject;
   };
   /**
-   * @description Override the generated OpenAPI paths.
+   * @description Modify existing paths or add new paths to the generated schema.
    * @default undefined
    */
-  overridePaths?: OpenAPIV3.PathsObject;
+  mergePaths?: OpenAPIV3.PathsObject;
   /**
    * @description If true, disables the Scalar API documentation endpoint.
    * @default false
@@ -54,7 +51,7 @@ interface ScalarModuleOptions {
   scalarDocPath?: string;
   /**
    * @description Options for the Scalar API Reference.
-   * @default {}
+   * @default undefined
    */
   scalarOpts?: Parameters<typeof ScalarApiReference>[0];
 }
@@ -93,50 +90,53 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
     disableOpenApi: false,
     openApiPath: "openapi.json",
     showDetailedDocsSchema: false,
-    skipDocsValidation: false,
+    skipDocsValidation: true,
     openApiOpts: {
       openapi: "3.0.0",
       info: {
         title: "API Documentation",
         version: "1.0.0",
       },
-      paths: {},
-    },
-    overridePaths: undefined,
+    } as OpenAPIV3.Document,
+    mergePaths: undefined,
+
     disableScalar: false,
     scalarDocPath: "scalar",
-    scalarOpts: {},
+    scalarOpts: undefined,
   } satisfies typeof opts;
-  const openApiPath = opts?.openApiPath ?? defaults.openApiPath;
-  const showDetailedDocsSchema =
-    opts?.showDetailedDocsSchema ?? defaults.showDetailedDocsSchema;
-  const skipDocsValidation =
-    opts?.skipDocsValidation ?? defaults.skipDocsValidation;
-  const openApiOpts = opts?.openApiOpts ?? defaults.openApiOpts;
-  const overridePaths = opts?.overridePaths ?? defaults.overridePaths;
-  const scalarDocPath = opts?.scalarDocPath ?? defaults.scalarDocPath;
-  const scalarOpts = opts?.scalarOpts ?? defaults.scalarOpts;
+  const {
+    openApiPath,
+    showDetailedDocsSchema,
+    skipDocsValidation,
+    openApiOpts,
+    mergePaths,
+    scalarDocPath,
+    scalarOpts,
+  } = { ...defaults, ...opts };
+
   return {
     _config: {
       openapiOverride: {
         GET: {
-          $pathParams: {
-            $skipValidation: skipDocsValidation,
-            schema: z
-              .object({
-                slug: z.union([
-                  z.literal(openApiPath),
-                  z.literal(scalarDocPath),
-                ]),
-              })
-              .toJSONSchema(),
+          requestBody: {
+            $pathParams: {
+              $_skipValidation: skipDocsValidation,
+              schema: z
+                .object({
+                  slug: z.union([
+                    z.literal(openApiPath),
+                    z.literal(scalarDocPath),
+                  ]),
+                })
+                .toJSONSchema(),
+            },
           },
           responses: {
             200: {
               description: "OpenAPI Schema",
               content: {
                 "application/json": {
-                  $skipValidation: skipDocsValidation,
+                  $_skipValidation: skipDocsValidation,
                   schema: showDetailedDocsSchema
                     ? OpenAPISchema.toJSONSchema()
                     : (z
@@ -144,7 +144,7 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
                         .toJSONSchema() as unknown as OpenAPIObject),
                 },
                 "text/html": {
-                  $skipValidation: skipDocsValidation,
+                  $_skipValidation: skipDocsValidation,
                   schema: {
                     type: "string",
                     format: "html",
@@ -168,19 +168,19 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
 
           // Lazy import: only load virtual module when actually serving the schema
           // This prevents circular dependencies during module initialization
-          let openApiPaths: any;
-          if (overridePaths) {
-            openApiPaths = { paths: overridePaths };
+          let openApiPaths: OpenAPIV3.Document["paths"];
+          if (openApiOpts.paths) {
+            openApiPaths = { paths: mergePaths };
           } else {
             const module = await import(
               "virtual:sveltekit-auto-openapi/schema-paths"
             );
-            openApiPaths = module.default;
+            openApiPaths = defu(mergePaths ?? {}, module.default);
           }
 
           const mergedSchema = defu(openApiOpts ?? {}, {
             paths: openApiPaths,
-          }) as OpenAPIV3.Document<object>;
+          }) as OpenAPIV3.Document;
 
           return json(mergedSchema);
         }
