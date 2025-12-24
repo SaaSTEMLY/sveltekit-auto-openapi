@@ -128,12 +128,15 @@ Just write your code. We infer the schema from your generic types.
 
 ```ts
 // src/routes/api/auth/+server.ts
-import { json } from "@sveltejs/kit";
+import { error, json } from "@sveltejs/kit";
 
 export async function POST({ request }) {
-  // The schema is automatically generated from the type!
   const { email }: { email: string } = await request.json();
-  console.log("🚀 ~ POST ~ email:", email);
+  if (email !== "example@test.com") {
+    error(404, {
+      message: "User not found",
+    });
+  }
   return json({ success: true });
 }
 ```
@@ -156,13 +159,11 @@ export const _config = {
       requestBody: {
         // Validate custom properties with $ prefix
         $headers: {
-          $_returnDetailedError: true,
-          schema: z.object({ "x-api-key": z.string() }).toJSONSchema(),
+          schema: z.looseObject({ "x-api-key": z.string() }).toJSONSchema(),
         },
         content: {
           "application/json": {
-            $_returnDetailedError: true,
-            schema: z.object({ email: z.string().email() }).toJSONSchema(),
+            schema: z.object({ email: z.email() }).toJSONSchema(),
           },
         },
       },
@@ -173,8 +174,23 @@ export const _config = {
           description: "Success",
           content: {
             "application/json": {
-              $_returnDetailedError: true,
-              schema: z.object({ success: z.boolean() }).toJSONSchema(),
+              schema: z
+                .object({
+                  success: z.literal(true),
+                })
+                .toJSONSchema(),
+            },
+          },
+        },
+        "404": {
+          description: "Success",
+          content: {
+            "application/json": {
+              schema: z
+                .object({
+                  message: z.string(),
+                })
+                .toJSONSchema(),
             },
           },
         },
@@ -184,7 +200,7 @@ export const _config = {
 } satisfies RouteConfig;
 
 export async function POST({ validated, json, error }) {
-  const { email } = validated;
+  const { email } = validated.body;
   if (email !== "example@test.com") {
     error(404, {
       message: "User not found",
@@ -194,100 +210,91 @@ export async function POST({ validated, json, error }) {
 }
 ```
 
-**Validation Flags:**
-
-- `$_returnDetailedError` - Show detailed validation errors (defaults to `false`)
-- `$_skipValidation` - Skip validation for this schema (defaults to `false`)
-
-**Supported Validation Properties:**
-
-- `requestBody.$headers` - Validate and add schema for request headers
-- `requestBody.$query` - Validate and add schema for request query parameters
-- `requestBody.$pathParams` - Validate and add schema for request path parameters
-- `requestBody.$cookies` - Validate and add schema for request cookies
-- `requestBody.content['application/json']` - Validate request body
-- `responses[statusCode].content['application/json']` - Validate response body
-- `responses[statusCode].$headers` - Validate and add schema for response headers
-- `responses[statusCode].$cookies` - Validate and add schema for response cookies
-
 ### Level 3: Using Raw JSON Schema
 
 Don't want to use StandardShema? You can provide raw JSON Schema objects directly:
 
 ```ts
-import { json } from "@sveltejs/kit";
 import type { RouteConfig } from "sveltekit-auto-openapi/types";
 
 export const _config = {
   openapiOverride: {
     POST: {
-      post: {
-        tags: ["Default"],
+      summary: "Create user",
+      description: "Creates a new user with email",
 
-        // "parameters" property does not get validated, use requestBody.$headers/requestBody.$pathParameters/requestBody.$query/requestBody.$cookies to enable validation
-        parameters: [
-          {
-            name: "x-api-key",
-            in: "header",
-            required: true,
+      parameters: [
+        {
+          name: "x-api-key",
+          in: "header",
+          required: true,
+          schema: {
+            type: "string",
+          },
+        },
+      ],
+      requestBody: {
+        content: {
+          "application/json": {
             schema: {
-              type: "string",
+              type: "object",
+              properties: {
+                email: {
+                  type: "string",
+                  format: "email",
+                  pattern:
+                    "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                },
+              },
+              required: ["email"],
+              additionalProperties: false,
             },
           },
-        ],
-        requestBody: {
+        },
+      },
+      responses: {
+        "200": {
+          description: "Success",
           content: {
             "application/json": {
-              $_returnDetailedError: true,
-              $_skipValidation: false,
               schema: {
                 type: "object",
                 properties: {
-                  email: {
-                    type: "string",
-                    format: "email",
-                    pattern:
-                      "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                  success: {
+                    type: "boolean",
+                    const: true,
                   },
                 },
-                required: ["email"],
+                required: ["success"],
                 additionalProperties: false,
-                $schema: "https://json-schema.org/draft/2020-12/schema",
               },
             },
           },
         },
-        responses: {
-          "200": {
-            description: "Success",
-            content: {
-              "application/json": {
-                $_returnDetailedError: true,
-                $_skipValidation: false,
-                schema: {
-                  type: "object",
-                  properties: {
-                    success: {
-                      type: "boolean",
-                    },
+        "404": {
+          description: "Success",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  message: {
+                    type: "string",
                   },
-                  required: ["success"],
-                  additionalProperties: false,
-                  $schema: "https://json-schema.org/draft/2020-12/schema",
                 },
+                required: ["message"],
+                additionalProperties: false,
               },
             },
           },
         },
-        summary: "Create user",
-        description: "Creates a new user with email",
       },
     },
   },
 } satisfies RouteConfig;
 
 export async function POST({ validated, json, error }) {
-  const { email } = validated;
+  const { email } = validated.body;
   if (email !== "example@test.com") {
     error(404, {
       message: "User not found",

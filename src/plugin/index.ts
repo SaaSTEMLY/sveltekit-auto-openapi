@@ -11,6 +11,18 @@ interface PluginOpts {
    * @default false
    */
   showDebugLogs?: boolean;
+
+  /**
+   * @description If true, skips automatic generation of schemaPaths from route spec.
+   * @default false
+   */
+  skipAutoGenerateSchemaPaths?:
+    | {
+        fromAst?: boolean;
+        fromConfig?: boolean;
+      }
+    | boolean;
+
   /**
    * @description If true, skips automatic validation of requests and responses based on the OpenAPI schemaPaths.
    * @default false
@@ -21,12 +33,50 @@ interface PluginOpts {
    * @description Default value for the `$_skipValidation` flag in route configs.
    * @default undefined
    */
-  skipValidationDefault?: boolean;
+  skipValidationDefault?:
+    | {
+        request?:
+          | {
+              headers?: boolean;
+              query?: boolean;
+              pathParams?: boolean;
+              body?: boolean;
+              cookies?: boolean;
+            }
+          | boolean;
+        response?:
+          | {
+              headers?: boolean;
+              body?: boolean;
+              cookies?: boolean;
+            }
+          | boolean;
+      }
+    | boolean;
   /**
    * @description Default value for the `$_returnDetailedError` flag in route configs.
    * @default undefined
    */
-  returnsDetailedErrorDefault?: boolean;
+  returnsDetailedErrorDefault?:
+    | {
+        request?:
+          | {
+              headers?: boolean;
+              query?: boolean;
+              pathParams?: boolean;
+              body?: boolean;
+              cookies?: boolean;
+            }
+          | boolean;
+        response?:
+          | {
+              headers?: boolean;
+              body?: boolean;
+              cookies?: boolean;
+            }
+          | boolean;
+      }
+    | boolean;
 }
 
 /**
@@ -37,13 +87,14 @@ interface PluginOpts {
 export default function svelteOpenApi(opts?: PluginOpts) {
   const defaultOpts = {
     showDebugLogs: false,
+    skipAutoGenerateSchemaPaths: false,
     skipAutoValidation: false,
-
     skipValidationDefault: undefined,
     returnsDetailedErrorDefault: undefined,
   };
   const {
     showDebugLogs,
+    skipAutoGenerateSchemaPaths,
     skipAutoValidation,
     skipValidationDefault,
     returnsDetailedErrorDefault,
@@ -77,34 +128,89 @@ export default function svelteOpenApi(opts?: PluginOpts) {
     // Generate content for virtual module
     async load(id, options) {
       if (id === RESOLVED_SCHEMA_PATHS_ID) {
-        // ./generatePaths.ts
-        // TODO: If cached schemaPaths exists, load from cache, if not generate new schemaPaths
-        // make sure to use skipValidationDefault and returnsDetailedErrorDefault where applicable
+        debugLog("Loading virtual module: schema-paths");
+
+        // Check cache
+        if (schemaPathsCache) {
+          debugLog("Returning cached schema paths");
+          return `export default ${JSON.stringify(schemaPathsCache, null, 2)};`;
+        }
+
+        // Generate fresh paths
+        debugLog("Generating schema paths...");
+        const { generateSchemaPaths } = await import("./generatePaths.ts");
+        const paths = await generateSchemaPaths({
+          skipAutoGenerateSchemaPaths,
+          showDebugLogs,
+        });
+
+        // Cache result
+        schemaPathsCache = paths;
+        debugLog(`Generated ${Object.keys(paths).length} paths`);
+
+        return `export default ${JSON.stringify(paths, null, 2)};`;
       }
     },
 
     // Transform +server.ts files to auto-inject validation
     async transform(code, id, options) {
-      if (!skipAutoValidation) {
-        // ./wrapValidation.ts
-        // TODO: implement code transformation to inject validation logic
+      if (!skipAutoValidation && id.endsWith("+server.ts")) {
+        debugLog("Transforming:", id);
+
+        const { wrapWithValidation } = await import("./wrapValidation.ts");
+        const transformed = await wrapWithValidation(
+          code,
+          id,
+          skipValidationDefault,
+          returnsDetailedErrorDefault
+        );
+
+        if (transformed) {
+          debugLog("Applied validation wrapper to:", id);
+          return { code: transformed };
+        }
       }
     },
 
     // sync all types on build start
-    async configResolved(config) {
+    async configureServer(server) {
       if (!skipAutoValidation) {
-        // ../sync-helper/sync.ts
-        // TODO: implement type synchronization logic
+        debugLog("Running initial type sync...");
+        server.httpServer?.on("listening", async () => {
+          await _syncAllTypes();
+          debugLog("Initial type sync complete");
+        });
+        debugLog("Type sync complete");
       }
     },
 
     // sync types on file change and invalidate schemaPaths cache
     async handleHotUpdate(ctx) {
-      // TODO: invalidate schemaPaths cache if applicable
-      if (!skipAutoValidation) {
-        // ../sync-helper/sync.ts
-        // TODO: implement type synchronization logic
+      const { file, server } = ctx;
+
+      // Invalidate schema cache if route file changed
+      if (file.includes("/routes/") && file.endsWith("+server.ts")) {
+        debugLog("Route file changed, invalidating cache:", file);
+        schemaPathsCache = null;
+
+        // Invalidate the virtual module to trigger reload
+        const virtualModule = server.moduleGraph.getModuleById(RESOLVED_SCHEMA_PATHS_ID);
+        if (virtualModule) {
+          debugLog("Invalidating virtual module");
+          server.moduleGraph.invalidateModule(virtualModule);
+        }
+
+        // Trigger HMR for the virtual module
+        server.ws.send({
+          type: 'full-reload',
+          path: '*'
+        });
+      }
+
+      // Sync types for changed file
+      if (!skipAutoValidation && file.endsWith("+server.ts")) {
+        debugLog("Syncing types for:", file);
+        await _syncFileTypes(file);
       }
     },
   } as PluginOption;

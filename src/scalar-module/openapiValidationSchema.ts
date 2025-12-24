@@ -31,12 +31,14 @@ export interface OpenAPISchemaType {
     | "object"
     | "null";
   format?: string;
+  pattern?: string;
   // Recursion: properties refer back to the Interface, not the Zod Schema directly
   properties?: Record<string, OpenAPISchemaType | OpenAPIReference>;
   additionalProperties?: boolean | OpenAPISchemaType | OpenAPIReference;
   items?: OpenAPISchemaType | OpenAPIReference;
   required?: string[];
   enum?: any[];
+  const?: any;
   allOf?: (OpenAPISchemaType | OpenAPIReference)[];
   oneOf?: (OpenAPISchemaType | OpenAPIReference)[];
   anyOf?: (OpenAPISchemaType | OpenAPIReference)[];
@@ -49,6 +51,7 @@ export interface OpenAPISchemaType {
   readOnly?: boolean;
   writeOnly?: boolean;
   deprecated?: boolean;
+  $schema?: string;
   [key: string]: any; // Allow vendor extensions in the type definition
 }
 
@@ -118,6 +121,7 @@ const SchemaObject: ZodType<OpenAPISchemaType> = z.lazy(() => {
       ])
       .optional(),
     format: z.string().optional(),
+    pattern: z.string().optional(),
 
     // Recursion: We use SchemaObject here.
     // TS knows SchemaObject is ZodType<OpenAPISchemaType>, so it matches.
@@ -140,10 +144,12 @@ const SchemaObject: ZodType<OpenAPISchemaType> = z.lazy(() => {
     default: z.any().optional(),
     example: z.any().optional(),
     enum: z.array(z.any()).optional(),
+    const: z.any().optional(),
     nullable: z.boolean().optional(),
     readOnly: z.boolean().optional(),
     writeOnly: z.boolean().optional(),
     deprecated: z.boolean().optional(),
+    $schema: z.string().optional(),
   });
 });
 

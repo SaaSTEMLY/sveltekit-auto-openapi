@@ -1,4 +1,3 @@
-import z from 'zod';
 import type { RouteConfig } from 'sveltekit-auto-openapi/types';
 
 export const _config = {
@@ -7,48 +6,68 @@ export const _config = {
 			summary: 'Create user',
 			description: 'Creates a new user with email',
 
-			// Validate request body (standard OpenAPI structure)
+			parameters: [
+				{
+					name: 'x-api-key',
+					in: 'header',
+					required: true,
+					schema: {
+						type: 'string'
+					}
+				}
+			],
 			requestBody: {
-				// Validate custom properties with $ prefix
-				$headers: {
-					$_returnDetailedError: true,
-					$_skipValidation: false,
-					schema: z.looseObject({ 'x-api-key': z.string() }).toJSONSchema()
-				},
 				content: {
 					'application/json': {
-						$_returnDetailedError: true,
-						$_skipValidation: false,
-						schema: z.object({ email: z.email() }).toJSONSchema()
+						schema: {
+							type: 'object',
+							properties: {
+								email: {
+									type: 'string',
+									format: 'email',
+									pattern:
+										"^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+								}
+							},
+							required: ['email'],
+							additionalProperties: false
+						}
 					}
 				}
 			},
-
-			// Validate responses (standard OpenAPI structure)
 			responses: {
 				'200': {
 					description: 'Success',
 					content: {
 						'application/json': {
-							$_returnDetailedError: true,
-							schema: z
-								.object({
-									success: z.literal(true)
-								})
-								.toJSONSchema()
+							schema: {
+								type: 'object',
+								properties: {
+									success: {
+										type: 'boolean',
+										const: true
+									}
+								},
+								required: ['success'],
+								additionalProperties: false
+							}
 						}
 					}
 				},
-				'409': {
+				'404': {
 					description: 'Success',
 					content: {
 						'application/json': {
-							$_returnDetailedError: true,
-							schema: z
-								.object({
-									message: z.string()
-								})
-								.toJSONSchema()
+							schema: {
+								type: 'object',
+								properties: {
+									message: {
+										type: 'string'
+									}
+								},
+								required: ['message'],
+								additionalProperties: false
+							}
 						}
 					}
 				}
@@ -57,10 +76,8 @@ export const _config = {
 	}
 } satisfies RouteConfig;
 
-export async function POST(event) {
-	const json = event.json;
-	const error = event.error;
-	const email = event.validated.body.email;
+export async function POST({ validated, json, error }) {
+	const { email } = validated.body;
 	if (email !== 'example@test.com') {
 		error(404, {
 			message: 'User not found'

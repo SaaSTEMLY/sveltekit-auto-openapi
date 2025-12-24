@@ -12,7 +12,33 @@ type ExtractSchemaType<T> = T extends {
 }
   ? // @ts-expect-error - Need to extract types properly
     NonNullable<Input["types"]>["output"]
-  : never;
+  : // Handle plain JSON Schema objects - infer from the schema structure
+    T extends { type: "object"; properties: infer Props }
+    ? ExtractObjectType<Props>
+    : T extends { type: "array"; items: infer Items }
+      ? Array<ExtractSchemaType<Items>>
+      : T extends { type: "string"; const: infer Const }
+        ? Const
+        : T extends { type: "string" }
+          ? string
+          : T extends { type: "number" | "integer" }
+            ? number
+            : T extends { type: "boolean"; const: infer Const }
+              ? Const
+              : T extends { type: "boolean" }
+                ? boolean
+                : T extends { type: "null" }
+                  ? null
+                  : T extends { const: infer Const }
+                    ? Const
+                    : any;
+
+// Helper to extract object properties from JSON Schema
+type ExtractObjectType<Props> = Props extends Record<string, any>
+  ? {
+      [K in keyof Props]: ExtractSchemaType<Props[K]>;
+    }
+  : any;
 
 // Type helper to extract success response types (2XX) from method config
 type ExtractSuccessResponseType<TMethod> =

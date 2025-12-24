@@ -14,14 +14,15 @@
 	// https://github.com/SaaSTEMLY/sveltekit-auto-openapi/blob/main/examples/basic/src/routes/api/usersBasic/+server.ts
 	import { error, json } from '@sveltejs/kit';
 
-	export const POST = async ({ request }) => {
-		const { email }: { email: string } = await request.json();
-		console.log('🚀 ~ POST ~ email:', email);
-		error(404, {
-			message: 'User not found'
-		});
+	export async function POST({ request }) {
+		const { email } = await request.json();
+		if (email !== 'example@test.com') {
+			error(404, {
+				message: 'User not found'
+			});
+		}
 		return json({ success: true });
-	};
+	}
 
 
 ```
@@ -32,10 +33,8 @@
 
 ```ts
 
-	// https://github.com/SaaSTEMLY/sveltekit-auto-openapi/blob/main/examples/basic/src/routes/api/usersOverride/+server.ts
 	import z from 'zod';
 	import type { RouteConfig } from 'sveltekit-auto-openapi/types';
-
 
 	export const _config = {
 		openapiOverride: {
@@ -43,19 +42,14 @@
 				summary: 'Create user',
 				description: 'Creates a new user with email',
 
-				// Validate custom properties with $ prefix
-				$headers: {
-					$_returnDetailedError: true,
-					$_skipValidation: false,
-					schema: z.looseObject({ 'x-api-key': z.string() }).toJSONSchema()
-				},
-
 				// Validate request body (standard OpenAPI structure)
 				requestBody: {
+					// Validate custom properties with $ prefix
+					$headers: {
+						schema: z.looseObject({ 'x-api-key': z.string() }).toJSONSchema()
+					},
 					content: {
 						'application/json': {
-							$_returnDetailedError: true,
-							$_skipValidation: false,
 							schema: z.object({ email: z.email() }).toJSONSchema()
 						}
 					}
@@ -67,7 +61,6 @@
 						description: 'Success',
 						content: {
 							'application/json': {
-								$_returnDetailedError: true,
 								schema: z
 									.object({
 										success: z.literal(true)
@@ -80,10 +73,9 @@
 						description: 'Success',
 						content: {
 							'application/json': {
-								$_returnDetailedError: true,
 								schema: z
 									.object({
-										success: z.literal(false)
+										message: z.string()
 									})
 									.toJSONSchema()
 							}
@@ -94,14 +86,17 @@
 		}
 	} satisfies RouteConfig;
 
-	export const POST = async ({ validated, json, error }) => {
-		const { email } = validated.body;
-		console.log('🚀 ~ POST ~ email:', email);
-		error(404, {
-			success: false
-		});
+	export async function POST(event) {
+		const json = event.json;
+		const error = event.error;
+		const email = event.validated.body.email;
+		if (email !== 'example@test.com') {
+			error(404, {
+				message: 'User not found'
+			});
+		}
 		return json({ success: true });
-	};
+	}
 
 
 ```
