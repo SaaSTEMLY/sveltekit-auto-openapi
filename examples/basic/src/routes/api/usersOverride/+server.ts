@@ -1,3 +1,4 @@
+import z from 'zod';
 import type { RouteConfig } from 'sveltekit-auto-openapi/types';
 
 export const _config = {
@@ -6,51 +7,35 @@ export const _config = {
 			summary: 'Create user',
 			description: 'Creates a new user with email',
 
-			parameters: [
-				{
-					name: 'x-api-key',
-					in: 'header',
-					required: true,
-					schema: {
-						type: 'string'
-					}
-				}
-			],
+			// Validate request body (standard OpenAPI structure)
 			requestBody: {
+				// Validate custom properties with $ prefix
+				$headers: {
+					$_returnDetailedError: true,
+					$_skipValidation: false,
+					schema: z.looseObject({ 'x-api-key': z.string() }).toJSONSchema()
+				},
 				content: {
 					'application/json': {
-						schema: {
-							type: 'object',
-							properties: {
-								email: {
-									type: 'string',
-									format: 'email',
-									pattern:
-										"^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-								}
-							},
-							required: ['email'],
-							additionalProperties: false
-						}
+						$_returnDetailedError: true,
+						$_skipValidation: false,
+						schema: z.object({ email: z.email() }).toJSONSchema()
 					}
 				}
 			},
+
+			// Validate responses (standard OpenAPI structure)
 			responses: {
 				'200': {
 					description: 'Success',
 					content: {
 						'application/json': {
-							schema: {
-								type: 'object',
-								properties: {
-									success: {
-										type: 'boolean',
-										const: true
-									}
-								},
-								required: ['success'],
-								additionalProperties: false
-							}
+							$_returnDetailedError: true,
+							schema: z
+								.object({
+									success: z.literal(true)
+								})
+								.toJSONSchema()
 						}
 					}
 				},
@@ -58,16 +43,12 @@ export const _config = {
 					description: 'Success',
 					content: {
 						'application/json': {
-							schema: {
-								type: 'object',
-								properties: {
-									message: {
-										type: 'string'
-									}
-								},
-								required: ['message'],
-								additionalProperties: false
-							}
+							$_returnDetailedError: true,
+							schema: z
+								.object({
+									message: z.string()
+								})
+								.toJSONSchema()
 						}
 					}
 				}
