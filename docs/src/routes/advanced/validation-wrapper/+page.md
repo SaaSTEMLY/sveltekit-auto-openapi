@@ -20,10 +20,11 @@ async function validationWrapper(
   requestHandler: RequestHandler,
   skipValidationDefault?: ValidationSkipConfig,
   returnsDetailedErrorDefault?: DetailedErrorConfig
-): Promise<RequestHandler>
+): Promise<RequestHandler>;
 ```
 
 **What it does:**
+
 1. Validates request (headers, cookies, query, params, body)
 2. Injects `validated` object into event
 3. Provides typed `json()` and `error()` helpers
@@ -40,7 +41,9 @@ The plugin transforms your handlers automatically:
 **Your code:**
 
 ```typescript
-export const _config = { /* ... */ } satisfies RouteConfig;
+export const _config = {
+  /* ... */
+} satisfies RouteConfig;
 
 export async function POST({ request }) {
   const data = await request.json();
@@ -51,9 +54,11 @@ export async function POST({ request }) {
 **Transformed by plugin:**
 
 ```typescript
-import { validationWrapper } from 'sveltekit-auto-openapi/validation-wrapper';
+import { validationWrapper } from "sveltekit-auto-openapi/validation-wrapper";
 
-export const _config = { /* ... */ } satisfies RouteConfig;
+export const _config = {
+  /* ... */
+} satisfies RouteConfig;
 
 const __original_POST = async ({ request }) => {
   const data = await request.json();
@@ -62,7 +67,7 @@ const __original_POST = async ({ request }) => {
 
 export const POST = await validationWrapper(
   _config,
-  'POST',
+  "POST",
   __original_POST,
   skipValidationDefault,
   returnsDetailedErrorDefault
@@ -70,6 +75,7 @@ export const POST = await validationWrapper(
 ```
 
 The transformation:
+
 1. Renames original handler to `__original_POST`
 2. Imports `validationWrapper`
 3. Wraps handler with validation
@@ -175,7 +181,7 @@ async function validateInputs(
     validated.headers = await validateWithSchema(
       extractHeaders(event.request),
       methodConfig.requestBody.$headers.schema,
-      'headers'
+      "headers"
     );
   }
 
@@ -184,7 +190,7 @@ async function validateInputs(
     validated.cookies = await validateWithSchema(
       extractCookies(event.cookies),
       methodConfig.requestBody.$cookies.schema,
-      'cookies'
+      "cookies"
     );
   }
 
@@ -193,7 +199,7 @@ async function validateInputs(
     validated.query = await validateWithSchema(
       extractQuery(event.url.searchParams),
       methodConfig.requestBody.$query.schema,
-      'query'
+      "query"
     );
   }
 
@@ -202,19 +208,19 @@ async function validateInputs(
     validated.pathParams = await validateWithSchema(
       event.params,
       methodConfig.requestBody.$pathParams.schema,
-      'pathParams'
+      "pathParams"
     );
   }
 
   // Validate body
-  if (methodConfig.requestBody?.content?.['application/json']) {
+  if (methodConfig.requestBody?.content?.["application/json"]) {
     const clonedRequest = event.request.clone();
     const body = await clonedRequest.json();
 
     validated.body = await validateWithSchema(
       body,
-      methodConfig.requestBody.content['application/json'].schema,
-      'body'
+      methodConfig.requestBody.content["application/json"].schema,
+      "body"
     );
   }
 
@@ -235,19 +241,19 @@ function validateWithSchema(
   // Convert StandardSchema to JSON Schema
   let jsonSchema = schema;
 
-  if (schema?.['~standard']?.jsonSchema?.output) {
-    jsonSchema = schema['~standard'].jsonSchema.output();
+  if (schema?.["~standard"]?.jsonSchema?.output) {
+    jsonSchema = schema["~standard"].jsonSchema.output();
   }
 
   // Validate using @cfworker/json-schema
-  const validator = new Validator(jsonSchema, '2020-12', false);
+  const validator = new Validator(jsonSchema, "2020-12", false);
   const result = validator.validate(data);
 
   if (!result.valid) {
     // Throw validation error
     throw new ValidationError({
       location,
-      errors: result.errors
+      errors: result.errors,
     });
   }
 
@@ -256,6 +262,7 @@ function validateWithSchema(
 ```
 
 **JSON Schema Validator:**
+
 - Uses `@cfworker/json-schema` library
 - Supports JSON Schema Draft 2020-12
 - Fast C++ implementation via WASM
@@ -284,11 +291,11 @@ async function validateResponse(
   // Find matching response schema
   const responseConfig = methodConfig.responses?.[status];
   if (!responseConfig) {
-    return response;  // No schema for this status
+    return response; // No schema for this status
   }
 
   // Skip if configured
-  const schema = responseConfig.content?.['application/json'];
+  const schema = responseConfig.content?.["application/json"];
   if (schema?.$_skipValidation) {
     return response;
   }
@@ -298,7 +305,7 @@ async function validateResponse(
   const body = await clonedResponse.json();
 
   // Validate against schema
-  await validateWithSchema(body, schema.schema, 'response');
+  await validateWithSchema(body, schema.schema, "response");
 
   return response;
 }
@@ -325,7 +332,7 @@ Used in handler:
 ```typescript
 export async function POST({ validated, json }) {
   // json() is typed to match success response schema
-  return json({ id: '123', email: 'user@example.com' });
+  return json({ id: "123", email: "user@example.com" });
 }
 ```
 
@@ -348,7 +355,7 @@ Used in handler:
 ```typescript
 export async function POST({ validated, error }) {
   // error() is typed to match error response schema
-  error(404, { error: 'Not found', code: 'NOT_FOUND' });
+  error(404, { error: "Not found", code: "NOT_FOUND" });
 }
 ```
 
@@ -360,15 +367,16 @@ Each route only loads its own validation code:
 
 ```typescript
 // Route 1 bundles only its validation
-import { validationWrapper } from 'sveltekit-auto-openapi/validation-wrapper';
-const POST = await validationWrapper(config1, 'POST', handler1);
+import { validationWrapper } from "sveltekit-auto-openapi/validation-wrapper";
+const POST = await validationWrapper(config1, "POST", handler1);
 
 // Route 2 bundles only its validation
-import { validationWrapper } from 'sveltekit-auto-openapi/validation-wrapper';
-const GET = await validationWrapper(config2, 'GET', handler2);
+import { validationWrapper } from "sveltekit-auto-openapi/validation-wrapper";
+const GET = await validationWrapper(config2, "GET", handler2);
 ```
 
 **Benefits:**
+
 - No monolithic validation bundle
 - Tree-shaking eliminates unused code
 - Smaller bundles per route
@@ -376,11 +384,13 @@ const GET = await validationWrapper(config2, 'GET', handler2);
 ### Validation Cost
 
 **Typical overhead:**
+
 - Simple schema (3 fields): ~1-2ms
 - Medium schema (10 fields): ~2-4ms
 - Complex schema (30+ fields): ~5-10ms
 
 **Factors affecting performance:**
+
 - Schema complexity
 - Validation rules (regex, formats, etc.)
 - Data size
@@ -393,9 +403,9 @@ const GET = await validationWrapper(config2, 'GET', handler2);
 ```typescript
 svelteOpenApi({
   skipValidationDefault: {
-    response: true  // Skip response validation
-  }
-})
+    response: true, // Skip response validation
+  },
+});
 ```
 
 **2. Validate only critical fields:**
@@ -427,54 +437,6 @@ requestBody: {
 
 ## Internals
 
-### StandardSchema Conversion
-
-Converts Zod/TypeBox schemas to JSON Schema:
-
-```typescript
-function toJSONSchema(schema: unknown): JSONSchema {
-  // Check for StandardSchema
-  if (schema?.['~standard']?.jsonSchema?.output) {
-    return schema['~standard'].jsonSchema.output();
-  }
-
-  // Already JSON Schema
-  return schema as JSONSchema;
-}
-```
-
-**Supported libraries:**
-- Zod (via `schema.toJSONSchema()`)
-- TypeBox (already JSON Schema)
-- Valibot (via StandardSchema)
-- ArkType (via StandardSchema)
-
-### Error Formatting
-
-**Simple errors:**
-
-```typescript
-{
-  error: 'Validation failed'
-}
-```
-
-**Detailed errors:**
-
-```typescript
-{
-  error: 'Validation failed',
-  details: [
-    {
-      instancePath: '/email',
-      keyword: 'format',
-      message: 'must match format "email"',
-      params: { format: 'email' }
-    }
-  ]
-}
-```
-
 ### Request/Response Cloning
 
 Validation requires reading the body, but bodies can only be read once. The wrapper clones requests and responses:
@@ -485,92 +447,22 @@ const clonedRequest = event.request.clone();
 const body = await clonedRequest.json();
 
 // Validate cloned body
-await validateWithSchema(body, schema, 'body');
+await validateWithSchema(body, schema, "body");
 
 // Original request body still available
 ```
 
 ## Advanced Usage
 
-### Custom Validation Wrapper
-
-Extend the wrapper with custom logic:
-
-```typescript
-import { validationWrapper } from 'sveltekit-auto-openapi/validation-wrapper';
-
-export function customWrapper(config, method, handler) {
-  return async (event) => {
-    // Pre-validation hook
-    console.log('Validating:', event.url.pathname);
-
-    // Wrap with standard validation
-    const wrapped = await validationWrapper(config, method, handler);
-
-    // Execute
-    try {
-      const response = await wrapped(event);
-
-      // Post-validation hook
-      console.log('Success:', response.status);
-
-      return response;
-    } catch (err) {
-      // Error hook
-      console.error('Validation failed:', err);
-      throw err;
-    }
-  };
-}
-```
-
-### Conditional Validation
-
-Validate only in certain conditions:
-
-```typescript
-export const POST = await validationWrapper(
-  _config,
-  'POST',
-  async (event) => {
-    // Skip validation for admin users
-    if (event.locals.user?.role === 'admin') {
-      return json({ success: true });
-    }
-
-    // Normal handler with validation
-    return json({ success: true });
-  }
-);
-```
-
 ## Troubleshooting
 
 ### Validation not running
 
 **Check:**
+
 - `_config` is exported
 - `skipAutoValidation` is not `true`
 - Handler uses wrapped function
-
-### Body already consumed
-
-**Problem:** Error about body being read
-
-**Solution:** Wrapper clones requests automatically, but ensure you're not reading body before validation:
-
-```typescript
-// ❌ Bad - reads body before validation
-export async function POST({ request }) {
-  const body = await request.json();  // Consumed!
-  // Validation fails
-}
-
-// ✅ Good - let wrapper handle it
-export async function POST({ validated }) {
-  const body = validated.body;  // Already parsed and validated
-}
-```
 
 ### Validation errors unclear
 

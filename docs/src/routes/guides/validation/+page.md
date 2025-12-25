@@ -69,7 +69,7 @@ export const _config = {
       requestBody: {
         content: {
           "application/json": {
-            schema: CreateUserSchema.toJSONSchema(),
+            schema: CreateUserSchema,
           },
         },
       },
@@ -78,12 +78,10 @@ export const _config = {
           description: "User created",
           content: {
             "application/json": {
-              schema: z
-                .object({
-                  id: z.string(),
-                  email: z.string(),
-                })
-                .toJSONSchema(),
+              schema: z.object({
+                id: z.string(),
+                email: z.string(),
+              }),
             },
           },
         },
@@ -190,7 +188,7 @@ export const _config = {
       requestBody: {
         content: {
           "application/json": {
-            schema: v.toJSONSchema(CreateOrderSchema),
+            schema: CreateOrderSchema,
           },
         },
       },
@@ -227,7 +225,7 @@ export const _config = {
       requestBody: {
         content: {
           "application/json": {
-            schema: loginSchema.toJSONSchema(),
+            schema: loginSchema,
           },
         },
       },

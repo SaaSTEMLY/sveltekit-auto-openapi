@@ -159,11 +159,11 @@ export const _config = {
       requestBody: {
         // Validate custom properties with $ prefix
         $headers: {
-          schema: z.looseObject({ "x-api-key": z.string() }).toJSONSchema(),
+          schema: z.looseObject({ "x-api-key": z.string() }),
         },
         content: {
           "application/json": {
-            schema: z.object({ email: z.email() }).toJSONSchema(),
+            schema: z.object({ email: z.email() }),
           },
         },
       },
@@ -174,11 +174,9 @@ export const _config = {
           description: "Success",
           content: {
             "application/json": {
-              schema: z
-                .object({
-                  success: z.literal(true),
-                })
-                .toJSONSchema(),
+              schema: z.object({
+                success: z.literal(true),
+              }),
             },
           },
         },
@@ -186,11 +184,9 @@ export const _config = {
           description: "Success",
           content: {
             "application/json": {
-              schema: z
-                .object({
-                  message: z.string(),
-                })
-                .toJSONSchema(),
+              schema: z.object({
+                message: z.string(),
+              }),
             },
           },
         },
