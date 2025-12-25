@@ -1,5 +1,3 @@
-// modify .svelte-kit/types/src/routes/.../$types.d.ts to inject types InjectedHelpers from @src/types/index.ts
-
 import { Project } from "ts-morph";
 import { glob } from "glob";
 import path from "path";
@@ -85,9 +83,7 @@ export async function _syncFileTypes(filePath: string) {
       const parts = normalizedPath.split("src/routes/");
       routePath = (parts[1] ?? "").replace("/+server.ts", "");
     } else {
-      console.warn(
-        `[sveltekit-auto-openapi] Invalid path format: ${filePath}`
-      );
+      console.warn(`[sveltekit-auto-openapi] Invalid path format: ${filePath}`);
       return;
     }
 
@@ -158,7 +154,10 @@ async function modifyTypesFile(typesPath: string, methods: string[]) {
         // Find the end of auto-generated section (before export type RequestEvent)
         for (let j = i; j < statements.length; j++) {
           const innerStmt = statements[j];
-          if (innerStmt && innerStmt.getText().includes("export type RequestEvent")) {
+          if (
+            innerStmt &&
+            innerStmt.getText().includes("export type RequestEvent")
+          ) {
             autoGenEndIndex = j - 1;
             break;
           }
@@ -222,7 +221,7 @@ async function modifyTypesFile(typesPath: string, methods: string[]) {
     const requestEventExport = exports.get("RequestEvent");
     if (requestEventExport) {
       requestEventExport.forEach((d) => {
-        if ('remove' in d && typeof d.remove === 'function') {
+        if ("remove" in d && typeof d.remove === "function") {
           d.remove();
         }
       });
@@ -231,7 +230,7 @@ async function modifyTypesFile(typesPath: string, methods: string[]) {
     const requestHandlerExport = exports.get("RequestHandler");
     if (requestHandlerExport) {
       requestHandlerExport.forEach((d) => {
-        if ('remove' in d && typeof d.remove === 'function') {
+        if ("remove" in d && typeof d.remove === "function") {
           d.remove();
         }
       });
@@ -282,7 +281,10 @@ async function restoreOriginalTypes(routePath: string) {
         // Find all auto-generated content
         for (let j = i; j < statements.length; j++) {
           const innerStmt = statements[j];
-          if (innerStmt && innerStmt.getText().includes("export type RequestEvent")) {
+          if (
+            innerStmt &&
+            innerStmt.getText().includes("export type RequestEvent")
+          ) {
             autoGenEndIndex = j + 1; // Include the export statements
             break;
           }

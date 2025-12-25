@@ -1,6 +1,11 @@
 import { error, json, RequestHandler } from "@sveltejs/kit";
 import type { OpenAPIV3 } from "openapi-types";
-import type { RouteConfig } from "../types/routeConfig.ts";
+import type {
+  OpenApiResponseKey,
+  OperationObjectWithValidation,
+  RouteConfig,
+} from "../types/routeConfig.ts";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { Validator } from "@cfworker/json-schema";
 
 export async function validationWrapper(
@@ -164,8 +169,18 @@ async function validateInputs(
     const bodyConfig = requestBody.content["application/json"];
 
     // Apply default if not explicitly set
-    applyValidationDefault(bodyConfig, skipValidationDefault, "request", "body");
-    applyDetailedErrorDefault(bodyConfig, returnsDetailedErrorDefault, "request", "body");
+    applyValidationDefault(
+      bodyConfig,
+      skipValidationDefault,
+      "request",
+      "body"
+    );
+    applyDetailedErrorDefault(
+      bodyConfig,
+      returnsDetailedErrorDefault,
+      "request",
+      "body"
+    );
 
     if (!bodyConfig.$_skipValidation) {
       try {
@@ -201,8 +216,18 @@ async function validateInputs(
     const queryData = Object.fromEntries(event.url.searchParams);
 
     // Apply default if not explicitly set
-    applyValidationDefault(requestBody.$query, skipValidationDefault, "request", "query");
-    applyDetailedErrorDefault(requestBody.$query, returnsDetailedErrorDefault, "request", "query");
+    applyValidationDefault(
+      requestBody.$query,
+      skipValidationDefault,
+      "request",
+      "query"
+    );
+    applyDetailedErrorDefault(
+      requestBody.$query,
+      returnsDetailedErrorDefault,
+      "request",
+      "query"
+    );
 
     if (!requestBody.$query.$_skipValidation) {
       validated.query = await validateWithSchema(
@@ -221,8 +246,18 @@ async function validateInputs(
   // Validate path parameters
   if (requestBody.$pathParams) {
     // Apply default if not explicitly set
-    applyValidationDefault(requestBody.$pathParams, skipValidationDefault, "request", "pathParams");
-    applyDetailedErrorDefault(requestBody.$pathParams, returnsDetailedErrorDefault, "request", "pathParams");
+    applyValidationDefault(
+      requestBody.$pathParams,
+      skipValidationDefault,
+      "request",
+      "pathParams"
+    );
+    applyDetailedErrorDefault(
+      requestBody.$pathParams,
+      returnsDetailedErrorDefault,
+      "request",
+      "pathParams"
+    );
 
     if (!requestBody.$pathParams.$_skipValidation) {
       validated.pathParams = await validateWithSchema(
@@ -243,8 +278,18 @@ async function validateInputs(
     const headersData = Object.fromEntries(event.request.headers);
 
     // Apply default if not explicitly set
-    applyValidationDefault(requestBody.$headers, skipValidationDefault, "request", "headers");
-    applyDetailedErrorDefault(requestBody.$headers, returnsDetailedErrorDefault, "request", "headers");
+    applyValidationDefault(
+      requestBody.$headers,
+      skipValidationDefault,
+      "request",
+      "headers"
+    );
+    applyDetailedErrorDefault(
+      requestBody.$headers,
+      returnsDetailedErrorDefault,
+      "request",
+      "headers"
+    );
 
     if (!requestBody.$headers.$_skipValidation) {
       validated.headers = await validateWithSchema(
@@ -270,8 +315,18 @@ async function validateInputs(
       }, {});
 
     // Apply default if not explicitly set
-    applyValidationDefault(requestBody.$cookies, skipValidationDefault, "request", "cookies");
-    applyDetailedErrorDefault(requestBody.$cookies, returnsDetailedErrorDefault, "request", "cookies");
+    applyValidationDefault(
+      requestBody.$cookies,
+      skipValidationDefault,
+      "request",
+      "cookies"
+    );
+    applyDetailedErrorDefault(
+      requestBody.$cookies,
+      returnsDetailedErrorDefault,
+      "request",
+      "cookies"
+    );
 
     if (!requestBody.$cookies.$_skipValidation) {
       validated.cookies = await validateWithSchema(
@@ -298,35 +353,57 @@ async function validateInputs(
 
 async function validateWithSchema(
   data: any,
-  schema: any,
+  schema:
+    | StandardSchemaV1<any>
+    | OpenAPIV3.ReferenceObject
+    | OpenAPIV3.SchemaObject,
   returnDetailedError: boolean = false,
   fieldName: string
 ) {
   // Convert StandardSchema to JSON Schema if needed
-  let jsonSchema = schema;
-  if (schema?.["~standard"]?.jsonSchema?.output) {
-    jsonSchema = schema["~standard"].jsonSchema.output();
-  }
+  if ("~standard" in schema) {
+    const validationRes = await schema["~standard"].validate(data);
+    if (validationRes.issues?.length) {
+      const compiledIssues: {
+        message: string;
+      }[] = [];
+      validationRes.issues.forEach((issue) => {
+        compiledIssues.push({
+          message: issue.message,
+        });
+      });
 
-  // Validate using @cfworker/json-schema
-  const validator = new Validator(jsonSchema, "2020-12", false);
-  const result = validator.validate(data);
+      const errorData = returnDetailedError
+        ? {
+            message: `Validation failed for ${fieldName}`,
+            errors: compiledIssues,
+          }
+        : {
+            message: `Validation failed for ${fieldName}`,
+          };
 
-  if (!result.valid) {
-    const errorData = returnDetailedError
-      ? {
-          message: `Validation failed for ${fieldName}`,
-          errors: result.errors.map((e) => ({
-            message: e.error,
-            path: e.instanceLocation,
-            keyword: e.keyword,
-          })),
-        }
-      : {
-          message: `Validation failed for ${fieldName}`,
-        };
+      throw error(400, errorData);
+    }
+  } else {
+    const validator = new Validator(schema as OpenAPIV3.SchemaObject);
+    const validationRes = validator.validate(data);
 
-    throw error(400, errorData);
+    if (!validationRes.valid) {
+      const errorData = returnDetailedError
+        ? {
+            message: `Validation failed for ${fieldName}`,
+            errors: validationRes.errors.map((e) => ({
+              message: e.error,
+              path: e.instanceLocation,
+              keyword: e.keyword,
+            })),
+          }
+        : {
+            message: `Validation failed for ${fieldName}`,
+          };
+
+      throw error(400, errorData);
+    }
   }
 
   return data;
@@ -334,12 +411,12 @@ async function validateWithSchema(
 
 async function validateResponse(
   response: Response,
-  methodConfig: any,
+  methodConfig: OperationObjectWithValidation,
   method: string,
   skipValidationDefault?: any,
   returnsDetailedErrorDefault?: any
 ) {
-  const status = response.status.toString();
+  const status = response.status.toString() as OpenApiResponseKey;
   const responseConfig = methodConfig.responses?.[status];
 
   if (!responseConfig) return;
@@ -348,11 +425,21 @@ async function validateResponse(
   if (!contentConfig) return;
 
   // Apply default if not explicitly set
-  applyValidationDefault(contentConfig, skipValidationDefault, "response", "body");
-  applyDetailedErrorDefault(contentConfig, returnsDetailedErrorDefault, "response", "body");
+  applyValidationDefault(
+    contentConfig,
+    skipValidationDefault,
+    "response",
+    "body"
+  );
+  applyDetailedErrorDefault(
+    contentConfig,
+    returnsDetailedErrorDefault,
+    "response",
+    "body"
+  );
 
   if (contentConfig.$_skipValidation) return;
-
+  contentConfig.schema;
   // Clone response to read body without consuming
   const cloned = response.clone();
   const contentType = response.headers.get("content-type");
@@ -397,7 +484,8 @@ function applyValidationDefault(
 
   // Apply field-specific configuration
   if (field in contextConfig) {
-    config.$_skipValidation = contextConfig[field as keyof typeof contextConfig];
+    config.$_skipValidation =
+      contextConfig[field as keyof typeof contextConfig];
   }
 }
 
@@ -430,7 +518,8 @@ function applyDetailedErrorDefault(
 
   // Apply field-specific configuration
   if (field in contextConfig) {
-    config.$_returnDetailedError = contextConfig[field as keyof typeof contextConfig];
+    config.$_returnDetailedError =
+      contextConfig[field as keyof typeof contextConfig];
   }
 }
 

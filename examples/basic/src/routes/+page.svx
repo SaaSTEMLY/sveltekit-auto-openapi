@@ -33,8 +33,10 @@
 
 ```ts
 
-	import z from 'zod';
 	import type { RouteConfig } from 'sveltekit-auto-openapi/types';
+	import { type } from 'arktype';
+	import z from 'zod';
+	import * as v from 'valibot';
 
 	export const _config = {
 		openapiOverride: {
@@ -46,11 +48,17 @@
 				requestBody: {
 					// Validate custom properties with $ prefix
 					$headers: {
-						schema: z.looseObject({ 'x-api-key': z.string() }).toJSONSchema()
+						$_returnDetailedError: true,
+						$_skipValidation: false,
+						// USING ZOD SCHEMA
+						schema: z.looseObject({ 'x-api-key': z.string() })
 					},
 					content: {
 						'application/json': {
-							schema: z.object({ email: z.email() }).toJSONSchema()
+							$_returnDetailedError: true,
+							$_skipValidation: false,
+							// USING ARKTYPE SCHEMA
+							schema: type({ email: 'string.email' })
 						}
 					}
 				},
@@ -61,23 +69,32 @@
 						description: 'Success',
 						content: {
 							'application/json': {
-								schema: z
-									.object({
-										success: z.literal(true)
-									})
-									.toJSONSchema()
+								$_returnDetailedError: true,
+								$_skipValidation: false,
+								// USING VALIBOT SCHEMA
+								schema: v.object({
+									success: v.literal(true)
+								})
 							}
 						}
 					},
-					'409': {
+					'404': {
 						description: 'Success',
 						content: {
 							'application/json': {
-								schema: z
-									.object({
-										message: z.string()
-									})
-									.toJSONSchema()
+								$_returnDetailedError: true,
+								$_skipValidation: false,
+								// USING MANUAL JSON SCHEMA
+								schema: {
+									type: 'object',
+									properties: {
+										message: {
+											type: 'string'
+										}
+									},
+									required: ['message'],
+									additionalProperties: false
+								}
 							}
 						}
 					}
@@ -86,10 +103,9 @@
 		}
 	} satisfies RouteConfig;
 
-	export async function POST(event) {
-		const json = event.json;
-		const error = event.error;
-		const email = event.validated.body.email;
+	export async function POST({ validated, json, error }) {
+		const { email } = validated.body;
+		console.log('🚀 ~ POST ~ email:', email);
 		if (email !== 'example@test.com') {
 			error(404, {
 				message: 'User not found'

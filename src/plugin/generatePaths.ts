@@ -2,6 +2,21 @@ import { glob } from "glob";
 import type { OpenAPIV3 } from "openapi-types";
 import path from "path";
 import { AstSchemaExtractor } from "./astExtractor.ts";
+import type {
+  OperationObjectWithValidation,
+  ValidationSchemaConfig,
+  MediaTypeWithValidation,
+  ResponseObjectWithValidation,
+} from "../types/routeConfig.ts";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
+import { toJsonSchema } from "@standard-community/standard-json";
+
+type DebugLog = (...args: unknown[]) => void;
+
+type SchemaInput =
+  | StandardSchemaV1<unknown>
+  | OpenAPIV3.ReferenceObject
+  | OpenAPIV3.SchemaObject;
 
 export async function generateSchemaPaths(opts?: {
   skipAutoGenerateSchemaPaths?:
@@ -21,9 +36,11 @@ export async function generateSchemaPaths(opts?: {
     ...opts,
   };
 
-  const skipOptions = normalizeSkipOptions(mergedOpts.skipAutoGenerateSchemaPaths);
-  const debugLog = mergedOpts.showDebugLogs
-    ? (...args: any[]) => console.log("[sveltekit-auto-openapi]", ...args)
+  const skipOptions = normalizeSkipOptions(
+    mergedOpts.skipAutoGenerateSchemaPaths
+  );
+  const debugLog: DebugLog = mergedOpts.showDebugLogs
+    ? (...args: unknown[]) => console.log("[sveltekit-auto-openapi]", ...args)
     : () => {};
 
   const paths: OpenAPIV3.PathsObject = {};
@@ -66,7 +83,10 @@ function normalizeSkipOptions(
   if (skipAutoGenerateSchemaPaths === true) {
     return { fromAst: true, fromConfig: true };
   }
-  if (skipAutoGenerateSchemaPaths === false || skipAutoGenerateSchemaPaths === undefined) {
+  if (
+    skipAutoGenerateSchemaPaths === false ||
+    skipAutoGenerateSchemaPaths === undefined
+  ) {
     return { fromAst: false, fromConfig: false };
   }
   return {
@@ -106,7 +126,9 @@ async function extractFromConfig(
     for (const [method, operation] of Object.entries(
       module._config.openapiOverride
     )) {
-      const processedOp = processOperation(operation as any);
+      const processedOp = await processOperation(
+        operation as OperationObjectWithValidation
+      );
       if (processedOp) {
         pathItem[method.toLowerCase() as Lowercase<OpenAPIV3.HttpMethods>] =
           processedOp;
@@ -130,7 +152,7 @@ async function extractFromConfig(
 async function extractFromAst(
   filePath: string,
   configuredMethods: string[],
-  debugLog: (...args: any[]) => void
+  debugLog: DebugLog
 ): Promise<OpenAPIV3.PathItemObject | null> {
   try {
     const extractor = new AstSchemaExtractor(debugLog);
@@ -157,13 +179,16 @@ async function processRouteFile(
   filePath: string,
   paths: OpenAPIV3.PathsObject,
   skipOptions: { fromAst: boolean; fromConfig: boolean },
-  debugLog: (...args: any[]) => void
-) {
+  debugLog: DebugLog
+): Promise<void> {
   const skipConfig = skipOptions.fromConfig;
   const skipAst = skipOptions.fromAst;
 
   // Phase 1: Extract from _config
-  let configResult = { schema: null as OpenAPIV3.PathItemObject | null, methods: [] as string[] };
+  let configResult = {
+    schema: null as OpenAPIV3.PathItemObject | null,
+    methods: [] as string[],
+  };
 
   if (!skipConfig) {
     configResult = await extractFromConfig(filePath);
@@ -191,7 +216,7 @@ async function processRouteFile(
   }
 }
 
-function processOperation(operation: any): OpenAPIV3.OperationObject | null {
+async function processOperation(operation: OperationObjectWithValidation) {
   try {
     const processed: OpenAPIV3.OperationObject = {
       responses: {},
@@ -211,24 +236,28 @@ function processOperation(operation: any): OpenAPIV3.OperationObject | null {
     if (operation.requestBody) {
       // Process custom $ properties first to extract parameters
       if (operation.requestBody.$headers) {
-        const headerParams = extractHeaderParams(
+        const headerParams = await extractHeaderParams(
           operation.requestBody.$headers
         );
         processed.parameters.push(...headerParams);
       }
 
       if (operation.requestBody.$query) {
-        const queryParams = extractQueryParams(operation.requestBody.$query);
+        const queryParams = await extractQueryParams(
+          operation.requestBody.$query
+        );
         processed.parameters.push(...queryParams);
       }
 
       if (operation.requestBody.$pathParams) {
-        const pathParams = extractPathParams(operation.requestBody.$pathParams);
+        const pathParams = await extractPathParams(
+          operation.requestBody.$pathParams
+        );
         processed.parameters.push(...pathParams);
       }
 
       if (operation.requestBody.$cookies) {
-        const cookieParams = extractCookieParams(
+        const cookieParams = await extractCookieParams(
           operation.requestBody.$cookies
         );
         processed.parameters.push(...cookieParams);
@@ -236,7 +265,7 @@ function processOperation(operation: any): OpenAPIV3.OperationObject | null {
 
       // Process standard requestBody content
       if (operation.requestBody.content) {
-        processed.requestBody = processRequestBody(operation.requestBody);
+        processed.requestBody = await processRequestBody(operation.requestBody);
       }
     }
 
@@ -252,7 +281,7 @@ function processOperation(operation: any): OpenAPIV3.OperationObject | null {
 
     // Handle responses
     if (operation.responses) {
-      processed.responses = processResponses(operation.responses);
+      processed.responses = await processResponses(operation.responses);
     }
 
     return processed;
@@ -265,10 +294,16 @@ function processOperation(operation: any): OpenAPIV3.OperationObject | null {
   }
 }
 
-function processRequestBody(requestBody: any): OpenAPIV3.RequestBodyObject {
+async function processRequestBody(
+  requestBody: OperationObjectWithValidation["requestBody"]
+) {
   const processed: OpenAPIV3.RequestBodyObject = {
     content: {},
   };
+
+  if (!requestBody) {
+    return processed;
+  }
 
   if (requestBody.description) {
     processed.description = requestBody.description;
@@ -282,13 +317,11 @@ function processRequestBody(requestBody: any): OpenAPIV3.RequestBodyObject {
   for (const [contentType, mediaType] of Object.entries(
     requestBody.content || {}
   )) {
-    const mt = mediaType as any;
+    const mt = mediaType as MediaTypeWithValidation;
     const processedMediaType: OpenAPIV3.MediaTypeObject = {};
 
-    // Apply default for body validation
-
     if (mt.schema) {
-      processedMediaType.schema = convertToJSONSchema(mt.schema);
+      processedMediaType.schema = await convertToJSONSchema(mt.schema);
     }
 
     if (mt.example) processedMediaType.example = mt.example;
@@ -301,11 +334,19 @@ function processRequestBody(requestBody: any): OpenAPIV3.RequestBodyObject {
   return processed;
 }
 
-function processResponses(responses: any): OpenAPIV3.ResponsesObject {
+async function processResponses(
+  responses: OperationObjectWithValidation["responses"]
+) {
   const processed: OpenAPIV3.ResponsesObject = {};
 
+  if (!responses) {
+    return processed;
+  }
+
   for (const [statusCode, response] of Object.entries(responses)) {
-    const resp = response as any;
+    if (!response) continue;
+
+    const resp = response as ResponseObjectWithValidation;
     const processedResponse: OpenAPIV3.ResponseObject = {
       description: resp.description || "Response",
     };
@@ -314,11 +355,11 @@ function processResponses(responses: any): OpenAPIV3.ResponsesObject {
     if (resp.content) {
       processedResponse.content = {};
       for (const [contentType, mediaType] of Object.entries(resp.content)) {
-        const mt = mediaType as any;
+        const mt = mediaType as MediaTypeWithValidation;
         const processedMediaType: OpenAPIV3.MediaTypeObject = {};
 
         if (mt.schema) {
-          processedMediaType.schema = convertToJSONSchema(mt.schema);
+          processedMediaType.schema = await convertToJSONSchema(mt.schema);
         }
 
         if (mt.example) processedMediaType.example = mt.example;
@@ -344,16 +385,19 @@ function processResponses(responses: any): OpenAPIV3.ResponsesObject {
   return processed;
 }
 
-function extractHeaderParams(headersConfig: any): OpenAPIV3.ParameterObject[] {
+async function extractHeaderParams(headersConfig: ValidationSchemaConfig) {
   const params: OpenAPIV3.ParameterObject[] = [];
 
   if (!headersConfig.schema) return params;
 
-  const schema = convertToJSONSchema(headersConfig.schema);
+  const schema = await convertToJSONSchema(headersConfig.schema);
 
   // Extract properties from schema
   if (schema && typeof schema === "object" && "properties" in schema) {
-    const properties = schema.properties as Record<string, any>;
+    const properties = schema.properties as Record<
+      string,
+      OpenAPIV3.SchemaObject
+    >;
     const required = (schema.required as string[]) || [];
 
     for (const [name, propSchema] of Object.entries(properties)) {
@@ -369,16 +413,19 @@ function extractHeaderParams(headersConfig: any): OpenAPIV3.ParameterObject[] {
   return params;
 }
 
-function extractQueryParams(queryConfig: any): OpenAPIV3.ParameterObject[] {
+async function extractQueryParams(queryConfig: ValidationSchemaConfig) {
   const params: OpenAPIV3.ParameterObject[] = [];
 
   if (!queryConfig.schema) return params;
 
-  const schema = convertToJSONSchema(queryConfig.schema);
+  const schema = await convertToJSONSchema(queryConfig.schema);
 
   // Extract properties from schema
   if (schema && typeof schema === "object" && "properties" in schema) {
-    const properties = schema.properties as Record<string, any>;
+    const properties = schema.properties as Record<
+      string,
+      OpenAPIV3.SchemaObject
+    >;
     const required = (schema.required as string[]) || [];
 
     for (const [name, propSchema] of Object.entries(properties)) {
@@ -394,16 +441,19 @@ function extractQueryParams(queryConfig: any): OpenAPIV3.ParameterObject[] {
   return params;
 }
 
-function extractPathParams(pathParamsConfig: any): OpenAPIV3.ParameterObject[] {
+async function extractPathParams(pathParamsConfig: ValidationSchemaConfig) {
   const params: OpenAPIV3.ParameterObject[] = [];
 
   if (!pathParamsConfig.schema) return params;
 
-  const schema = convertToJSONSchema(pathParamsConfig.schema);
+  const schema = await convertToJSONSchema(pathParamsConfig.schema);
 
   // Extract properties from schema
   if (schema && typeof schema === "object" && "properties" in schema) {
-    const properties = schema.properties as Record<string, any>;
+    const properties = schema.properties as Record<
+      string,
+      OpenAPIV3.SchemaObject
+    >;
 
     for (const [name, propSchema] of Object.entries(properties)) {
       params.push({
@@ -418,16 +468,19 @@ function extractPathParams(pathParamsConfig: any): OpenAPIV3.ParameterObject[] {
   return params;
 }
 
-function extractCookieParams(cookiesConfig: any): OpenAPIV3.ParameterObject[] {
+async function extractCookieParams(cookiesConfig: ValidationSchemaConfig) {
   const params: OpenAPIV3.ParameterObject[] = [];
 
   if (!cookiesConfig.schema) return params;
 
-  const schema = convertToJSONSchema(cookiesConfig.schema);
+  const schema = await convertToJSONSchema(cookiesConfig.schema);
 
   // Extract properties from schema
   if (schema && typeof schema === "object" && "properties" in schema) {
-    const properties = schema.properties as Record<string, any>;
+    const properties = schema.properties as Record<
+      string,
+      OpenAPIV3.SchemaObject
+    >;
     const required = (schema.required as string[]) || [];
 
     for (const [name, propSchema] of Object.entries(properties)) {
@@ -443,26 +496,43 @@ function extractCookieParams(cookiesConfig: any): OpenAPIV3.ParameterObject[] {
   return params;
 }
 
-function convertToJSONSchema(schema: any): any {
-  if (!schema) return schema;
+async function convertToJSONSchema(schema: SchemaInput) {
+  if (!schema) {
+    return {};
+  }
 
-  // Check if it's StandardSchema (Zod output from .toJSONSchema())
-  if (schema && typeof schema === "object" && "~standard" in schema) {
-    // Extract JSON Schema from StandardSchema
-    const standard = schema["~standard"];
-    if (standard && standard.jsonSchema?.output) {
-      return standard.jsonSchema.output();
+  // Check if it's StandardSchema (compliant with @standard-schema/spec)
+  if ("~standard" in schema) {
+    try {
+      const jsonSchema = await toJsonSchema(schema);
+      return jsonSchema as OpenAPIV3.SchemaObject;
+    } catch (e) {
+      console.warn(
+        "[sveltekit-auto-openapi] Standard Schema conversion failed:",
+        e
+      );
+      return {};
     }
   }
 
-  // Already JSON Schema - return as is but remove custom $ properties
+  // Already JSON Schema or Reference - return as is but remove custom $ properties
   if (schema && typeof schema === "object") {
-    const cleaned = { ...schema };
+    // Handle Reference objects
+    if ("$ref" in schema) {
+      return schema as OpenAPIV3.ReferenceObject;
+    }
+
+    // Handle Schema objects - clean validation flags
+    const cleaned = { ...(schema as OpenAPIV3.SchemaObject) };
     // Remove validation flags that are not part of JSON Schema
-    delete cleaned.$_skipValidation;
-    delete cleaned.$_returnDetailedError;
+    if ("$_skipValidation" in cleaned) {
+      delete (cleaned as Record<string, unknown>).$_skipValidation;
+    }
+    if ("$_returnDetailedError" in cleaned) {
+      delete (cleaned as Record<string, unknown>).$_returnDetailedError;
+    }
     return cleaned;
   }
 
-  return schema;
+  return {};
 }

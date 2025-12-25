@@ -121,14 +121,12 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
           requestBody: {
             $pathParams: {
               $_skipValidation: skipDocsValidation,
-              schema: z
-                .object({
-                  slug: z.union([
-                    z.literal(openApiPath),
-                    z.literal(scalarDocPath),
-                  ]),
-                })
-                .toJSONSchema(),
+              schema: z.object({
+                slug: z.union([
+                  z.literal(openApiPath),
+                  z.literal(scalarDocPath),
+                ]),
+              }),
             },
           },
           responses: {
@@ -138,10 +136,8 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
                 "application/json": {
                   $_skipValidation: skipDocsValidation,
                   schema: showDetailedDocsSchema
-                    ? OpenAPISchema.toJSONSchema()
-                    : (z
-                        .looseObject({})
-                        .toJSONSchema() as unknown as OpenAPIObject),
+                    ? OpenAPISchema
+                    : (z.looseObject({}) as unknown as OpenAPIObject),
                 },
                 "text/html": {
                   $_skipValidation: skipDocsValidation,

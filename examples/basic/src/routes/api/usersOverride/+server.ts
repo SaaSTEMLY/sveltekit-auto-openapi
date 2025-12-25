@@ -1,5 +1,7 @@
-import z from 'zod';
 import type { RouteConfig } from 'sveltekit-auto-openapi/types';
+import { type } from 'arktype';
+import z from 'zod';
+import * as v from 'valibot';
 
 export const _config = {
 	openapiOverride: {
@@ -13,13 +15,15 @@ export const _config = {
 				$headers: {
 					$_returnDetailedError: true,
 					$_skipValidation: false,
-					schema: z.looseObject({ 'x-api-key': z.string() }).toJSONSchema()
+					// USING ZOD SCHEMA
+					schema: z.looseObject({ 'x-api-key': z.string() })
 				},
 				content: {
 					'application/json': {
 						$_returnDetailedError: true,
 						$_skipValidation: false,
-						schema: z.object({ email: z.email() }).toJSONSchema()
+						// USING ARKTYPE SCHEMA
+						schema: type({ email: 'string.email' })
 					}
 				}
 			},
@@ -31,11 +35,11 @@ export const _config = {
 					content: {
 						'application/json': {
 							$_returnDetailedError: true,
-							schema: z
-								.object({
-									success: z.literal(true)
-								})
-								.toJSONSchema()
+							$_skipValidation: false,
+							// USING VALIBOT SCHEMA
+							schema: v.object({
+								success: v.literal(true)
+							})
 						}
 					}
 				},
@@ -44,11 +48,18 @@ export const _config = {
 					content: {
 						'application/json': {
 							$_returnDetailedError: true,
-							schema: z
-								.object({
-									message: z.string()
-								})
-								.toJSONSchema()
+							$_skipValidation: false,
+							// USING MANUAL JSON SCHEMA
+							schema: {
+								type: 'object',
+								properties: {
+									message: {
+										type: 'string'
+									}
+								},
+								required: ['message'],
+								additionalProperties: false
+							}
 						}
 					}
 				}
@@ -59,6 +70,7 @@ export const _config = {
 
 export async function POST({ validated, json, error }) {
 	const { email } = validated.body;
+	console.log('🚀 ~ POST ~ email:', email);
 	if (email !== 'example@test.com') {
 		error(404, {
 			message: 'User not found'

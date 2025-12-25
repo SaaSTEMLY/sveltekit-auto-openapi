@@ -1,6 +1,5 @@
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { OpenAPIV3 } from "openapi-types";
-import { ZodObject } from "zod";
-import { ZodStandardJSONSchemaPayload } from "zod/v4/core";
 
 type Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 type HttpStatusCodeStart = "1" | "2" | "3" | "4" | "5";
@@ -29,7 +28,7 @@ export interface ValidationSchemaConfig {
    */
   $_skipValidation?: boolean;
   schema:
-    | ZodStandardJSONSchemaPayload<any>
+    | StandardSchemaV1<any>
     | OpenAPIV3.ReferenceObject
     | OpenAPIV3.SchemaObject; // JSON Schema or ZodType - will be converted at build time
 }
