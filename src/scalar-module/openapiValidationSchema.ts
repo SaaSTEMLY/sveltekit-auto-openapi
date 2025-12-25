@@ -1,270 +1,4024 @@
-import { z, ZodType } from "zod";
+import { OpenAPIV3 } from "openapi-types";
 
-// --- 0. Helpers ---
-
-/**
- * Helper to mimic "z.looseObject" behavior.
- * OpenAPI objects often allow "Vendor Extensions" (x-something),
- * so we use .passthrough() to allow unknown keys.
- */
-const looseObject = <T extends z.ZodRawShape>(shape: T) =>
-  z.object(shape).passthrough();
-
-// --- 1. Type Definitions ---
-// Defining these interfaces strictly allows us to handle the recursion
-// without TypeScript getting confused by Zod's inferred types.
-
-export interface OpenAPIReference {
-  $ref: string;
-  summary?: string;
-  description?: string;
-}
-
-// We use an interface for better recursive type handling in TS
-export interface OpenAPISchemaType {
-  type?:
-    | "string"
-    | "number"
-    | "integer"
-    | "boolean"
-    | "array"
-    | "object"
-    | "null";
-  format?: string;
-  pattern?: string;
-  // Recursion: properties refer back to the Interface, not the Zod Schema directly
-  properties?: Record<string, OpenAPISchemaType | OpenAPIReference>;
-  additionalProperties?: boolean | OpenAPISchemaType | OpenAPIReference;
-  items?: OpenAPISchemaType | OpenAPIReference;
-  required?: string[];
-  enum?: any[];
-  const?: any;
-  allOf?: (OpenAPISchemaType | OpenAPIReference)[];
-  oneOf?: (OpenAPISchemaType | OpenAPIReference)[];
-  anyOf?: (OpenAPISchemaType | OpenAPIReference)[];
-  not?: OpenAPISchemaType | OpenAPIReference;
-  title?: string;
-  description?: string;
-  default?: any;
-  example?: any;
-  nullable?: boolean;
-  readOnly?: boolean;
-  writeOnly?: boolean;
-  deprecated?: boolean;
-  $schema?: string;
-  [key: string]: any; // Allow vendor extensions in the type definition
-}
-
-// --- 2. Base Components ---
-
-const ReferenceObject: ZodType<OpenAPIReference> = looseObject({
-  $ref: z.string(),
-  summary: z.string().optional(),
-  description: z.string().optional(),
-});
-
-const ExternalDocumentation = looseObject({
-  description: z.string().optional(),
-  url: z.string().url(),
-});
-
-const Contact = looseObject({
-  name: z.string().optional(),
-  url: z.string().url().optional(),
-  email: z.string().email().optional(),
-});
-
-const License = looseObject({
-  name: z.string(),
-  url: z.string().url().optional(),
-});
-
-const Info = looseObject({
-  title: z.string(),
-  description: z.string().optional(),
-  termsOfService: z.string().url().optional(),
-  contact: Contact.optional(),
-  license: License.optional(),
-  version: z.string(),
-});
-
-const ServerVariable = looseObject({
-  enum: z.array(z.string()).optional(),
-  default: z.string(),
-  description: z.string().optional(),
-});
-
-const Server = looseObject({
-  url: z.string(),
-  description: z.string().optional(),
-  variables: z.record(z.string(), ServerVariable).optional(),
-});
-
-// --- 3. The Recursive Schema Object ---
-
-/**
- * We explicitly type this as ZodType<OpenAPISchemaType>.
- * Inside z.lazy, we use a "Base" schema definition to avoid
- * circular inference issues.
- */
-const SchemaObject: ZodType<OpenAPISchemaType> = z.lazy(() => {
-  return looseObject({
-    type: z
-      .enum([
-        "string",
-        "number",
-        "integer",
-        "boolean",
-        "array",
-        "object",
-        "null",
-      ])
-      .optional(),
-    format: z.string().optional(),
-    pattern: z.string().optional(),
-
-    // Recursion: We use SchemaObject here.
-    // TS knows SchemaObject is ZodType<OpenAPISchemaType>, so it matches.
-    properties: z
-      .record(z.string(), z.union([SchemaObject, ReferenceObject]))
-      .optional(),
-    additionalProperties: z
-      .union([z.boolean(), SchemaObject, ReferenceObject])
-      .optional(),
-    items: z.union([SchemaObject, ReferenceObject]).optional(),
-    required: z.array(z.string()).optional(),
-
-    allOf: z.array(z.union([SchemaObject, ReferenceObject])).optional(),
-    oneOf: z.array(z.union([SchemaObject, ReferenceObject])).optional(),
-    anyOf: z.array(z.union([SchemaObject, ReferenceObject])).optional(),
-    not: z.union([SchemaObject, ReferenceObject]).optional(),
-
-    title: z.string().optional(),
-    description: z.string().optional(),
-    default: z.any().optional(),
-    example: z.any().optional(),
-    enum: z.array(z.any()).optional(),
-    const: z.any().optional(),
-    nullable: z.boolean().optional(),
-    readOnly: z.boolean().optional(),
-    writeOnly: z.boolean().optional(),
-    deprecated: z.boolean().optional(),
-    $schema: z.string().optional(),
-  });
-});
-
-// --- 4. Request & Response Components ---
-
-const MediaType = looseObject({
-  schema: z.union([SchemaObject, ReferenceObject]).optional(),
-  example: z.any().optional(),
-  examples: z.record(z.string(), z.any()).optional(),
-  encoding: z.record(z.string(), z.any()).optional(),
-});
-
-const Parameter = looseObject({
-  name: z.string(),
-  in: z.enum(["query", "header", "path", "cookie"]),
-  description: z.string().optional(),
-  required: z.boolean().optional(),
-  deprecated: z.boolean().optional(),
-  allowEmptyValue: z.boolean().optional(),
-  schema: z.union([SchemaObject, ReferenceObject]).optional(),
-  style: z.string().optional(),
-  explode: z.boolean().optional(),
-  example: z.any().optional(),
-});
-
-const RequestBody = looseObject({
-  description: z.string().optional(),
-  content: z.record(z.string(), MediaType),
-  required: z.boolean().optional(),
-});
-
-const Response = looseObject({
-  description: z.string(),
-  headers: z.record(z.string(), z.union([ReferenceObject, z.any()])).optional(),
-  content: z.record(z.string(), MediaType).optional(),
-  links: z.record(z.string(), z.any()).optional(),
-});
-
-// --- 5. Operations & Paths ---
-
-const Operation = looseObject({
-  tags: z.array(z.string()).optional(),
-  summary: z.string().optional(),
-  description: z.string().optional(),
-  externalDocs: ExternalDocumentation.optional(),
-  operationId: z.string().optional(),
-  parameters: z.array(z.union([Parameter, ReferenceObject])).optional(),
-  requestBody: z.union([RequestBody, ReferenceObject]).optional(),
-  responses: z.record(z.string(), z.union([Response, ReferenceObject])),
-  deprecated: z.boolean().optional(),
-  security: z.array(z.record(z.string(), z.array(z.string()))).optional(),
-  servers: z.array(Server).optional(),
-});
-
-const PathItem = looseObject({
-  $ref: z.string().optional(),
-  summary: z.string().optional(),
-  description: z.string().optional(),
-  get: Operation.optional(),
-  put: Operation.optional(),
-  post: Operation.optional(),
-  delete: Operation.optional(),
-  options: Operation.optional(),
-  head: Operation.optional(),
-  patch: Operation.optional(),
-  trace: Operation.optional(),
-  servers: z.array(Server).optional(),
-  parameters: z.array(z.union([Parameter, ReferenceObject])).optional(),
-});
-
-// --- 6. Components & Root ---
-
-const Components = looseObject({
-  schemas: z
-    .record(z.string(), z.union([SchemaObject, ReferenceObject]))
-    .optional(),
-  responses: z
-    .record(z.string(), z.union([Response, ReferenceObject]))
-    .optional(),
-  parameters: z
-    .record(z.string(), z.union([Parameter, ReferenceObject]))
-    .optional(),
-  examples: z
-    .record(z.string(), z.union([z.any(), ReferenceObject]))
-    .optional(),
-  requestBodies: z
-    .record(z.string(), z.union([RequestBody, ReferenceObject]))
-    .optional(),
-  headers: z.record(z.string(), z.union([z.any(), ReferenceObject])).optional(),
-  securitySchemes: z
-    .record(z.string(), z.union([z.any(), ReferenceObject]))
-    .optional(),
-  links: z.record(z.string(), z.union([z.any(), ReferenceObject])).optional(),
-  callbacks: z
-    .record(z.string(), z.union([z.any(), ReferenceObject]))
-    .optional(),
-});
-
-const Tag = looseObject({
-  name: z.string(),
-  description: z.string().optional(),
-  externalDocs: ExternalDocumentation.optional(),
-});
-
-// *** The Final Schema ***
-export const OpenAPISchema = looseObject({
-  openapi: z.string().regex(/^3\.\d+\.\d+$/, "Must be an OpenAPI 3.x version"),
-  info: Info,
-  servers: z.array(Server).optional(),
-  paths: z.record(z.string().startsWith("/"), PathItem),
-  components: Components.optional(),
-  security: z.array(z.record(z.string(), z.array(z.string()))).optional(),
-  tags: z.array(Tag).optional(),
-  externalDocs: ExternalDocumentation.optional(),
-});
-
-// Type inference helper
-export type OpenAPIObject = z.infer<typeof OpenAPISchema>;
+export const OpenAPISchema = {
+  type: "object",
+  properties: {
+    openapi: {
+      type: "string",
+      pattern: "^3\\.\\d+\\.\\d+$",
+    },
+    info: {
+      type: "object",
+      properties: {
+        title: {
+          type: "string",
+        },
+        description: {
+          type: "string",
+        },
+        termsOfService: {
+          type: "string",
+          format: "uri",
+        },
+        contact: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+            },
+            url: {
+              type: "string",
+              format: "uri",
+            },
+            email: {
+              type: "string",
+              format: "email",
+              pattern:
+                "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            },
+          },
+          additionalProperties: {},
+        },
+        license: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+            },
+            url: {
+              type: "string",
+              format: "uri",
+            },
+          },
+          required: ["name"],
+          additionalProperties: {},
+        },
+        version: {
+          type: "string",
+        },
+      },
+      required: ["title", "version"],
+      additionalProperties: {},
+    },
+    servers: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+          },
+          description: {
+            type: "string",
+          },
+          variables: {
+            type: "object",
+            propertyNames: {
+              type: "string",
+            },
+            additionalProperties: {
+              type: "object",
+              properties: {
+                enum: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                },
+                default: {
+                  type: "string",
+                },
+                description: {
+                  type: "string",
+                },
+              },
+              required: ["default"],
+              additionalProperties: {},
+            },
+          },
+        },
+        required: ["url"],
+        additionalProperties: {},
+      },
+    },
+    paths: {
+      type: "object",
+      propertyNames: {
+        type: "string",
+        pattern: "^\\/.*",
+      },
+      additionalProperties: {
+        type: "object",
+        properties: {
+          $ref: {
+            type: "string",
+          },
+          summary: {
+            type: "string",
+          },
+          description: {
+            type: "string",
+          },
+          get: {
+            type: "object",
+            properties: {
+              tags: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+              summary: {
+                type: "string",
+              },
+              description: {
+                type: "string",
+              },
+              externalDocs: {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  url: {
+                    type: "string",
+                    format: "uri",
+                  },
+                },
+                required: ["url"],
+                additionalProperties: {},
+              },
+              operationId: {
+                type: "string",
+              },
+              parameters: {
+                type: "array",
+                items: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        name: {
+                          type: "string",
+                        },
+                        in: {
+                          type: "string",
+                          enum: ["query", "header", "path", "cookie"],
+                        },
+                        description: {
+                          type: "string",
+                        },
+                        required: {
+                          type: "boolean",
+                        },
+                        deprecated: {
+                          type: "boolean",
+                        },
+                        allowEmptyValue: {
+                          type: "boolean",
+                        },
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        style: {
+                          type: "string",
+                        },
+                        explode: {
+                          type: "boolean",
+                        },
+                        example: {},
+                      },
+                      required: ["name", "in"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              requestBody: {
+                anyOf: [
+                  {
+                    type: "object",
+                    properties: {
+                      description: {
+                        type: "string",
+                      },
+                      content: {
+                        type: "object",
+                        propertyNames: {
+                          type: "string",
+                        },
+                        additionalProperties: {
+                          type: "object",
+                          properties: {
+                            schema: {
+                              anyOf: [
+                                {
+                                  $ref: "#/$defs/__schema0",
+                                },
+                                {
+                                  type: "object",
+                                  properties: {
+                                    $ref: {
+                                      type: "string",
+                                    },
+                                    summary: {
+                                      type: "string",
+                                    },
+                                    description: {
+                                      type: "string",
+                                    },
+                                  },
+                                  required: ["$ref"],
+                                  additionalProperties: {},
+                                },
+                              ],
+                            },
+                            example: {},
+                            examples: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                            encoding: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: {
+                        type: "boolean",
+                      },
+                    },
+                    required: ["content"],
+                    additionalProperties: {},
+                  },
+                  {
+                    type: "object",
+                    properties: {
+                      $ref: {
+                        type: "string",
+                      },
+                      summary: {
+                        type: "string",
+                      },
+                      description: {
+                        type: "string",
+                      },
+                    },
+                    required: ["$ref"],
+                    additionalProperties: {},
+                  },
+                ],
+              },
+              responses: {
+                type: "object",
+                propertyNames: {
+                  type: "string",
+                },
+                additionalProperties: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        description: {
+                          type: "string",
+                        },
+                        headers: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            anyOf: [
+                              {
+                                type: "object",
+                                properties: {
+                                  $ref: {
+                                    type: "string",
+                                  },
+                                  summary: {
+                                    type: "string",
+                                  },
+                                  description: {
+                                    type: "string",
+                                  },
+                                },
+                                required: ["$ref"],
+                                additionalProperties: {},
+                              },
+                              {},
+                            ],
+                          },
+                        },
+                        content: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            type: "object",
+                            properties: {
+                              schema: {
+                                anyOf: [
+                                  {
+                                    $ref: "#/$defs/__schema0",
+                                  },
+                                  {
+                                    type: "object",
+                                    properties: {
+                                      $ref: {
+                                        type: "string",
+                                      },
+                                      summary: {
+                                        type: "string",
+                                      },
+                                      description: {
+                                        type: "string",
+                                      },
+                                    },
+                                    required: ["$ref"],
+                                    additionalProperties: {},
+                                  },
+                                ],
+                              },
+                              example: {},
+                              examples: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                              encoding: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                            },
+                            additionalProperties: {},
+                          },
+                        },
+                        links: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: ["description"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              deprecated: {
+                type: "boolean",
+              },
+              security: {
+                type: "array",
+                items: {
+                  type: "object",
+                  propertyNames: {
+                    type: "string",
+                  },
+                  additionalProperties: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+              servers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    url: {
+                      type: "string",
+                    },
+                    description: {
+                      type: "string",
+                    },
+                    variables: {
+                      type: "object",
+                      propertyNames: {
+                        type: "string",
+                      },
+                      additionalProperties: {
+                        type: "object",
+                        properties: {
+                          enum: {
+                            type: "array",
+                            items: {
+                              type: "string",
+                            },
+                          },
+                          default: {
+                            type: "string",
+                          },
+                          description: {
+                            type: "string",
+                          },
+                        },
+                        required: ["default"],
+                        additionalProperties: {},
+                      },
+                    },
+                  },
+                  required: ["url"],
+                  additionalProperties: {},
+                },
+              },
+            },
+            required: ["responses"],
+            additionalProperties: {},
+          },
+          put: {
+            type: "object",
+            properties: {
+              tags: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+              summary: {
+                type: "string",
+              },
+              description: {
+                type: "string",
+              },
+              externalDocs: {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  url: {
+                    type: "string",
+                    format: "uri",
+                  },
+                },
+                required: ["url"],
+                additionalProperties: {},
+              },
+              operationId: {
+                type: "string",
+              },
+              parameters: {
+                type: "array",
+                items: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        name: {
+                          type: "string",
+                        },
+                        in: {
+                          type: "string",
+                          enum: ["query", "header", "path", "cookie"],
+                        },
+                        description: {
+                          type: "string",
+                        },
+                        required: {
+                          type: "boolean",
+                        },
+                        deprecated: {
+                          type: "boolean",
+                        },
+                        allowEmptyValue: {
+                          type: "boolean",
+                        },
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        style: {
+                          type: "string",
+                        },
+                        explode: {
+                          type: "boolean",
+                        },
+                        example: {},
+                      },
+                      required: ["name", "in"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              requestBody: {
+                anyOf: [
+                  {
+                    type: "object",
+                    properties: {
+                      description: {
+                        type: "string",
+                      },
+                      content: {
+                        type: "object",
+                        propertyNames: {
+                          type: "string",
+                        },
+                        additionalProperties: {
+                          type: "object",
+                          properties: {
+                            schema: {
+                              anyOf: [
+                                {
+                                  $ref: "#/$defs/__schema0",
+                                },
+                                {
+                                  type: "object",
+                                  properties: {
+                                    $ref: {
+                                      type: "string",
+                                    },
+                                    summary: {
+                                      type: "string",
+                                    },
+                                    description: {
+                                      type: "string",
+                                    },
+                                  },
+                                  required: ["$ref"],
+                                  additionalProperties: {},
+                                },
+                              ],
+                            },
+                            example: {},
+                            examples: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                            encoding: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: {
+                        type: "boolean",
+                      },
+                    },
+                    required: ["content"],
+                    additionalProperties: {},
+                  },
+                  {
+                    type: "object",
+                    properties: {
+                      $ref: {
+                        type: "string",
+                      },
+                      summary: {
+                        type: "string",
+                      },
+                      description: {
+                        type: "string",
+                      },
+                    },
+                    required: ["$ref"],
+                    additionalProperties: {},
+                  },
+                ],
+              },
+              responses: {
+                type: "object",
+                propertyNames: {
+                  type: "string",
+                },
+                additionalProperties: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        description: {
+                          type: "string",
+                        },
+                        headers: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            anyOf: [
+                              {
+                                type: "object",
+                                properties: {
+                                  $ref: {
+                                    type: "string",
+                                  },
+                                  summary: {
+                                    type: "string",
+                                  },
+                                  description: {
+                                    type: "string",
+                                  },
+                                },
+                                required: ["$ref"],
+                                additionalProperties: {},
+                              },
+                              {},
+                            ],
+                          },
+                        },
+                        content: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            type: "object",
+                            properties: {
+                              schema: {
+                                anyOf: [
+                                  {
+                                    $ref: "#/$defs/__schema0",
+                                  },
+                                  {
+                                    type: "object",
+                                    properties: {
+                                      $ref: {
+                                        type: "string",
+                                      },
+                                      summary: {
+                                        type: "string",
+                                      },
+                                      description: {
+                                        type: "string",
+                                      },
+                                    },
+                                    required: ["$ref"],
+                                    additionalProperties: {},
+                                  },
+                                ],
+                              },
+                              example: {},
+                              examples: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                              encoding: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                            },
+                            additionalProperties: {},
+                          },
+                        },
+                        links: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: ["description"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              deprecated: {
+                type: "boolean",
+              },
+              security: {
+                type: "array",
+                items: {
+                  type: "object",
+                  propertyNames: {
+                    type: "string",
+                  },
+                  additionalProperties: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+              servers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    url: {
+                      type: "string",
+                    },
+                    description: {
+                      type: "string",
+                    },
+                    variables: {
+                      type: "object",
+                      propertyNames: {
+                        type: "string",
+                      },
+                      additionalProperties: {
+                        type: "object",
+                        properties: {
+                          enum: {
+                            type: "array",
+                            items: {
+                              type: "string",
+                            },
+                          },
+                          default: {
+                            type: "string",
+                          },
+                          description: {
+                            type: "string",
+                          },
+                        },
+                        required: ["default"],
+                        additionalProperties: {},
+                      },
+                    },
+                  },
+                  required: ["url"],
+                  additionalProperties: {},
+                },
+              },
+            },
+            required: ["responses"],
+            additionalProperties: {},
+          },
+          post: {
+            type: "object",
+            properties: {
+              tags: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+              summary: {
+                type: "string",
+              },
+              description: {
+                type: "string",
+              },
+              externalDocs: {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  url: {
+                    type: "string",
+                    format: "uri",
+                  },
+                },
+                required: ["url"],
+                additionalProperties: {},
+              },
+              operationId: {
+                type: "string",
+              },
+              parameters: {
+                type: "array",
+                items: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        name: {
+                          type: "string",
+                        },
+                        in: {
+                          type: "string",
+                          enum: ["query", "header", "path", "cookie"],
+                        },
+                        description: {
+                          type: "string",
+                        },
+                        required: {
+                          type: "boolean",
+                        },
+                        deprecated: {
+                          type: "boolean",
+                        },
+                        allowEmptyValue: {
+                          type: "boolean",
+                        },
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        style: {
+                          type: "string",
+                        },
+                        explode: {
+                          type: "boolean",
+                        },
+                        example: {},
+                      },
+                      required: ["name", "in"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              requestBody: {
+                anyOf: [
+                  {
+                    type: "object",
+                    properties: {
+                      description: {
+                        type: "string",
+                      },
+                      content: {
+                        type: "object",
+                        propertyNames: {
+                          type: "string",
+                        },
+                        additionalProperties: {
+                          type: "object",
+                          properties: {
+                            schema: {
+                              anyOf: [
+                                {
+                                  $ref: "#/$defs/__schema0",
+                                },
+                                {
+                                  type: "object",
+                                  properties: {
+                                    $ref: {
+                                      type: "string",
+                                    },
+                                    summary: {
+                                      type: "string",
+                                    },
+                                    description: {
+                                      type: "string",
+                                    },
+                                  },
+                                  required: ["$ref"],
+                                  additionalProperties: {},
+                                },
+                              ],
+                            },
+                            example: {},
+                            examples: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                            encoding: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: {
+                        type: "boolean",
+                      },
+                    },
+                    required: ["content"],
+                    additionalProperties: {},
+                  },
+                  {
+                    type: "object",
+                    properties: {
+                      $ref: {
+                        type: "string",
+                      },
+                      summary: {
+                        type: "string",
+                      },
+                      description: {
+                        type: "string",
+                      },
+                    },
+                    required: ["$ref"],
+                    additionalProperties: {},
+                  },
+                ],
+              },
+              responses: {
+                type: "object",
+                propertyNames: {
+                  type: "string",
+                },
+                additionalProperties: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        description: {
+                          type: "string",
+                        },
+                        headers: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            anyOf: [
+                              {
+                                type: "object",
+                                properties: {
+                                  $ref: {
+                                    type: "string",
+                                  },
+                                  summary: {
+                                    type: "string",
+                                  },
+                                  description: {
+                                    type: "string",
+                                  },
+                                },
+                                required: ["$ref"],
+                                additionalProperties: {},
+                              },
+                              {},
+                            ],
+                          },
+                        },
+                        content: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            type: "object",
+                            properties: {
+                              schema: {
+                                anyOf: [
+                                  {
+                                    $ref: "#/$defs/__schema0",
+                                  },
+                                  {
+                                    type: "object",
+                                    properties: {
+                                      $ref: {
+                                        type: "string",
+                                      },
+                                      summary: {
+                                        type: "string",
+                                      },
+                                      description: {
+                                        type: "string",
+                                      },
+                                    },
+                                    required: ["$ref"],
+                                    additionalProperties: {},
+                                  },
+                                ],
+                              },
+                              example: {},
+                              examples: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                              encoding: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                            },
+                            additionalProperties: {},
+                          },
+                        },
+                        links: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: ["description"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              deprecated: {
+                type: "boolean",
+              },
+              security: {
+                type: "array",
+                items: {
+                  type: "object",
+                  propertyNames: {
+                    type: "string",
+                  },
+                  additionalProperties: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+              servers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    url: {
+                      type: "string",
+                    },
+                    description: {
+                      type: "string",
+                    },
+                    variables: {
+                      type: "object",
+                      propertyNames: {
+                        type: "string",
+                      },
+                      additionalProperties: {
+                        type: "object",
+                        properties: {
+                          enum: {
+                            type: "array",
+                            items: {
+                              type: "string",
+                            },
+                          },
+                          default: {
+                            type: "string",
+                          },
+                          description: {
+                            type: "string",
+                          },
+                        },
+                        required: ["default"],
+                        additionalProperties: {},
+                      },
+                    },
+                  },
+                  required: ["url"],
+                  additionalProperties: {},
+                },
+              },
+            },
+            required: ["responses"],
+            additionalProperties: {},
+          },
+          delete: {
+            type: "object",
+            properties: {
+              tags: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+              summary: {
+                type: "string",
+              },
+              description: {
+                type: "string",
+              },
+              externalDocs: {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  url: {
+                    type: "string",
+                    format: "uri",
+                  },
+                },
+                required: ["url"],
+                additionalProperties: {},
+              },
+              operationId: {
+                type: "string",
+              },
+              parameters: {
+                type: "array",
+                items: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        name: {
+                          type: "string",
+                        },
+                        in: {
+                          type: "string",
+                          enum: ["query", "header", "path", "cookie"],
+                        },
+                        description: {
+                          type: "string",
+                        },
+                        required: {
+                          type: "boolean",
+                        },
+                        deprecated: {
+                          type: "boolean",
+                        },
+                        allowEmptyValue: {
+                          type: "boolean",
+                        },
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        style: {
+                          type: "string",
+                        },
+                        explode: {
+                          type: "boolean",
+                        },
+                        example: {},
+                      },
+                      required: ["name", "in"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              requestBody: {
+                anyOf: [
+                  {
+                    type: "object",
+                    properties: {
+                      description: {
+                        type: "string",
+                      },
+                      content: {
+                        type: "object",
+                        propertyNames: {
+                          type: "string",
+                        },
+                        additionalProperties: {
+                          type: "object",
+                          properties: {
+                            schema: {
+                              anyOf: [
+                                {
+                                  $ref: "#/$defs/__schema0",
+                                },
+                                {
+                                  type: "object",
+                                  properties: {
+                                    $ref: {
+                                      type: "string",
+                                    },
+                                    summary: {
+                                      type: "string",
+                                    },
+                                    description: {
+                                      type: "string",
+                                    },
+                                  },
+                                  required: ["$ref"],
+                                  additionalProperties: {},
+                                },
+                              ],
+                            },
+                            example: {},
+                            examples: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                            encoding: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: {
+                        type: "boolean",
+                      },
+                    },
+                    required: ["content"],
+                    additionalProperties: {},
+                  },
+                  {
+                    type: "object",
+                    properties: {
+                      $ref: {
+                        type: "string",
+                      },
+                      summary: {
+                        type: "string",
+                      },
+                      description: {
+                        type: "string",
+                      },
+                    },
+                    required: ["$ref"],
+                    additionalProperties: {},
+                  },
+                ],
+              },
+              responses: {
+                type: "object",
+                propertyNames: {
+                  type: "string",
+                },
+                additionalProperties: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        description: {
+                          type: "string",
+                        },
+                        headers: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            anyOf: [
+                              {
+                                type: "object",
+                                properties: {
+                                  $ref: {
+                                    type: "string",
+                                  },
+                                  summary: {
+                                    type: "string",
+                                  },
+                                  description: {
+                                    type: "string",
+                                  },
+                                },
+                                required: ["$ref"],
+                                additionalProperties: {},
+                              },
+                              {},
+                            ],
+                          },
+                        },
+                        content: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            type: "object",
+                            properties: {
+                              schema: {
+                                anyOf: [
+                                  {
+                                    $ref: "#/$defs/__schema0",
+                                  },
+                                  {
+                                    type: "object",
+                                    properties: {
+                                      $ref: {
+                                        type: "string",
+                                      },
+                                      summary: {
+                                        type: "string",
+                                      },
+                                      description: {
+                                        type: "string",
+                                      },
+                                    },
+                                    required: ["$ref"],
+                                    additionalProperties: {},
+                                  },
+                                ],
+                              },
+                              example: {},
+                              examples: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                              encoding: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                            },
+                            additionalProperties: {},
+                          },
+                        },
+                        links: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: ["description"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              deprecated: {
+                type: "boolean",
+              },
+              security: {
+                type: "array",
+                items: {
+                  type: "object",
+                  propertyNames: {
+                    type: "string",
+                  },
+                  additionalProperties: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+              servers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    url: {
+                      type: "string",
+                    },
+                    description: {
+                      type: "string",
+                    },
+                    variables: {
+                      type: "object",
+                      propertyNames: {
+                        type: "string",
+                      },
+                      additionalProperties: {
+                        type: "object",
+                        properties: {
+                          enum: {
+                            type: "array",
+                            items: {
+                              type: "string",
+                            },
+                          },
+                          default: {
+                            type: "string",
+                          },
+                          description: {
+                            type: "string",
+                          },
+                        },
+                        required: ["default"],
+                        additionalProperties: {},
+                      },
+                    },
+                  },
+                  required: ["url"],
+                  additionalProperties: {},
+                },
+              },
+            },
+            required: ["responses"],
+            additionalProperties: {},
+          },
+          options: {
+            type: "object",
+            properties: {
+              tags: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+              summary: {
+                type: "string",
+              },
+              description: {
+                type: "string",
+              },
+              externalDocs: {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  url: {
+                    type: "string",
+                    format: "uri",
+                  },
+                },
+                required: ["url"],
+                additionalProperties: {},
+              },
+              operationId: {
+                type: "string",
+              },
+              parameters: {
+                type: "array",
+                items: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        name: {
+                          type: "string",
+                        },
+                        in: {
+                          type: "string",
+                          enum: ["query", "header", "path", "cookie"],
+                        },
+                        description: {
+                          type: "string",
+                        },
+                        required: {
+                          type: "boolean",
+                        },
+                        deprecated: {
+                          type: "boolean",
+                        },
+                        allowEmptyValue: {
+                          type: "boolean",
+                        },
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        style: {
+                          type: "string",
+                        },
+                        explode: {
+                          type: "boolean",
+                        },
+                        example: {},
+                      },
+                      required: ["name", "in"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              requestBody: {
+                anyOf: [
+                  {
+                    type: "object",
+                    properties: {
+                      description: {
+                        type: "string",
+                      },
+                      content: {
+                        type: "object",
+                        propertyNames: {
+                          type: "string",
+                        },
+                        additionalProperties: {
+                          type: "object",
+                          properties: {
+                            schema: {
+                              anyOf: [
+                                {
+                                  $ref: "#/$defs/__schema0",
+                                },
+                                {
+                                  type: "object",
+                                  properties: {
+                                    $ref: {
+                                      type: "string",
+                                    },
+                                    summary: {
+                                      type: "string",
+                                    },
+                                    description: {
+                                      type: "string",
+                                    },
+                                  },
+                                  required: ["$ref"],
+                                  additionalProperties: {},
+                                },
+                              ],
+                            },
+                            example: {},
+                            examples: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                            encoding: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: {
+                        type: "boolean",
+                      },
+                    },
+                    required: ["content"],
+                    additionalProperties: {},
+                  },
+                  {
+                    type: "object",
+                    properties: {
+                      $ref: {
+                        type: "string",
+                      },
+                      summary: {
+                        type: "string",
+                      },
+                      description: {
+                        type: "string",
+                      },
+                    },
+                    required: ["$ref"],
+                    additionalProperties: {},
+                  },
+                ],
+              },
+              responses: {
+                type: "object",
+                propertyNames: {
+                  type: "string",
+                },
+                additionalProperties: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        description: {
+                          type: "string",
+                        },
+                        headers: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            anyOf: [
+                              {
+                                type: "object",
+                                properties: {
+                                  $ref: {
+                                    type: "string",
+                                  },
+                                  summary: {
+                                    type: "string",
+                                  },
+                                  description: {
+                                    type: "string",
+                                  },
+                                },
+                                required: ["$ref"],
+                                additionalProperties: {},
+                              },
+                              {},
+                            ],
+                          },
+                        },
+                        content: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            type: "object",
+                            properties: {
+                              schema: {
+                                anyOf: [
+                                  {
+                                    $ref: "#/$defs/__schema0",
+                                  },
+                                  {
+                                    type: "object",
+                                    properties: {
+                                      $ref: {
+                                        type: "string",
+                                      },
+                                      summary: {
+                                        type: "string",
+                                      },
+                                      description: {
+                                        type: "string",
+                                      },
+                                    },
+                                    required: ["$ref"],
+                                    additionalProperties: {},
+                                  },
+                                ],
+                              },
+                              example: {},
+                              examples: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                              encoding: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                            },
+                            additionalProperties: {},
+                          },
+                        },
+                        links: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: ["description"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              deprecated: {
+                type: "boolean",
+              },
+              security: {
+                type: "array",
+                items: {
+                  type: "object",
+                  propertyNames: {
+                    type: "string",
+                  },
+                  additionalProperties: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+              servers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    url: {
+                      type: "string",
+                    },
+                    description: {
+                      type: "string",
+                    },
+                    variables: {
+                      type: "object",
+                      propertyNames: {
+                        type: "string",
+                      },
+                      additionalProperties: {
+                        type: "object",
+                        properties: {
+                          enum: {
+                            type: "array",
+                            items: {
+                              type: "string",
+                            },
+                          },
+                          default: {
+                            type: "string",
+                          },
+                          description: {
+                            type: "string",
+                          },
+                        },
+                        required: ["default"],
+                        additionalProperties: {},
+                      },
+                    },
+                  },
+                  required: ["url"],
+                  additionalProperties: {},
+                },
+              },
+            },
+            required: ["responses"],
+            additionalProperties: {},
+          },
+          head: {
+            type: "object",
+            properties: {
+              tags: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+              summary: {
+                type: "string",
+              },
+              description: {
+                type: "string",
+              },
+              externalDocs: {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  url: {
+                    type: "string",
+                    format: "uri",
+                  },
+                },
+                required: ["url"],
+                additionalProperties: {},
+              },
+              operationId: {
+                type: "string",
+              },
+              parameters: {
+                type: "array",
+                items: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        name: {
+                          type: "string",
+                        },
+                        in: {
+                          type: "string",
+                          enum: ["query", "header", "path", "cookie"],
+                        },
+                        description: {
+                          type: "string",
+                        },
+                        required: {
+                          type: "boolean",
+                        },
+                        deprecated: {
+                          type: "boolean",
+                        },
+                        allowEmptyValue: {
+                          type: "boolean",
+                        },
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        style: {
+                          type: "string",
+                        },
+                        explode: {
+                          type: "boolean",
+                        },
+                        example: {},
+                      },
+                      required: ["name", "in"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              requestBody: {
+                anyOf: [
+                  {
+                    type: "object",
+                    properties: {
+                      description: {
+                        type: "string",
+                      },
+                      content: {
+                        type: "object",
+                        propertyNames: {
+                          type: "string",
+                        },
+                        additionalProperties: {
+                          type: "object",
+                          properties: {
+                            schema: {
+                              anyOf: [
+                                {
+                                  $ref: "#/$defs/__schema0",
+                                },
+                                {
+                                  type: "object",
+                                  properties: {
+                                    $ref: {
+                                      type: "string",
+                                    },
+                                    summary: {
+                                      type: "string",
+                                    },
+                                    description: {
+                                      type: "string",
+                                    },
+                                  },
+                                  required: ["$ref"],
+                                  additionalProperties: {},
+                                },
+                              ],
+                            },
+                            example: {},
+                            examples: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                            encoding: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: {
+                        type: "boolean",
+                      },
+                    },
+                    required: ["content"],
+                    additionalProperties: {},
+                  },
+                  {
+                    type: "object",
+                    properties: {
+                      $ref: {
+                        type: "string",
+                      },
+                      summary: {
+                        type: "string",
+                      },
+                      description: {
+                        type: "string",
+                      },
+                    },
+                    required: ["$ref"],
+                    additionalProperties: {},
+                  },
+                ],
+              },
+              responses: {
+                type: "object",
+                propertyNames: {
+                  type: "string",
+                },
+                additionalProperties: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        description: {
+                          type: "string",
+                        },
+                        headers: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            anyOf: [
+                              {
+                                type: "object",
+                                properties: {
+                                  $ref: {
+                                    type: "string",
+                                  },
+                                  summary: {
+                                    type: "string",
+                                  },
+                                  description: {
+                                    type: "string",
+                                  },
+                                },
+                                required: ["$ref"],
+                                additionalProperties: {},
+                              },
+                              {},
+                            ],
+                          },
+                        },
+                        content: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            type: "object",
+                            properties: {
+                              schema: {
+                                anyOf: [
+                                  {
+                                    $ref: "#/$defs/__schema0",
+                                  },
+                                  {
+                                    type: "object",
+                                    properties: {
+                                      $ref: {
+                                        type: "string",
+                                      },
+                                      summary: {
+                                        type: "string",
+                                      },
+                                      description: {
+                                        type: "string",
+                                      },
+                                    },
+                                    required: ["$ref"],
+                                    additionalProperties: {},
+                                  },
+                                ],
+                              },
+                              example: {},
+                              examples: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                              encoding: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                            },
+                            additionalProperties: {},
+                          },
+                        },
+                        links: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: ["description"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              deprecated: {
+                type: "boolean",
+              },
+              security: {
+                type: "array",
+                items: {
+                  type: "object",
+                  propertyNames: {
+                    type: "string",
+                  },
+                  additionalProperties: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+              servers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    url: {
+                      type: "string",
+                    },
+                    description: {
+                      type: "string",
+                    },
+                    variables: {
+                      type: "object",
+                      propertyNames: {
+                        type: "string",
+                      },
+                      additionalProperties: {
+                        type: "object",
+                        properties: {
+                          enum: {
+                            type: "array",
+                            items: {
+                              type: "string",
+                            },
+                          },
+                          default: {
+                            type: "string",
+                          },
+                          description: {
+                            type: "string",
+                          },
+                        },
+                        required: ["default"],
+                        additionalProperties: {},
+                      },
+                    },
+                  },
+                  required: ["url"],
+                  additionalProperties: {},
+                },
+              },
+            },
+            required: ["responses"],
+            additionalProperties: {},
+          },
+          patch: {
+            type: "object",
+            properties: {
+              tags: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+              summary: {
+                type: "string",
+              },
+              description: {
+                type: "string",
+              },
+              externalDocs: {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  url: {
+                    type: "string",
+                    format: "uri",
+                  },
+                },
+                required: ["url"],
+                additionalProperties: {},
+              },
+              operationId: {
+                type: "string",
+              },
+              parameters: {
+                type: "array",
+                items: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        name: {
+                          type: "string",
+                        },
+                        in: {
+                          type: "string",
+                          enum: ["query", "header", "path", "cookie"],
+                        },
+                        description: {
+                          type: "string",
+                        },
+                        required: {
+                          type: "boolean",
+                        },
+                        deprecated: {
+                          type: "boolean",
+                        },
+                        allowEmptyValue: {
+                          type: "boolean",
+                        },
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        style: {
+                          type: "string",
+                        },
+                        explode: {
+                          type: "boolean",
+                        },
+                        example: {},
+                      },
+                      required: ["name", "in"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              requestBody: {
+                anyOf: [
+                  {
+                    type: "object",
+                    properties: {
+                      description: {
+                        type: "string",
+                      },
+                      content: {
+                        type: "object",
+                        propertyNames: {
+                          type: "string",
+                        },
+                        additionalProperties: {
+                          type: "object",
+                          properties: {
+                            schema: {
+                              anyOf: [
+                                {
+                                  $ref: "#/$defs/__schema0",
+                                },
+                                {
+                                  type: "object",
+                                  properties: {
+                                    $ref: {
+                                      type: "string",
+                                    },
+                                    summary: {
+                                      type: "string",
+                                    },
+                                    description: {
+                                      type: "string",
+                                    },
+                                  },
+                                  required: ["$ref"],
+                                  additionalProperties: {},
+                                },
+                              ],
+                            },
+                            example: {},
+                            examples: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                            encoding: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: {
+                        type: "boolean",
+                      },
+                    },
+                    required: ["content"],
+                    additionalProperties: {},
+                  },
+                  {
+                    type: "object",
+                    properties: {
+                      $ref: {
+                        type: "string",
+                      },
+                      summary: {
+                        type: "string",
+                      },
+                      description: {
+                        type: "string",
+                      },
+                    },
+                    required: ["$ref"],
+                    additionalProperties: {},
+                  },
+                ],
+              },
+              responses: {
+                type: "object",
+                propertyNames: {
+                  type: "string",
+                },
+                additionalProperties: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        description: {
+                          type: "string",
+                        },
+                        headers: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            anyOf: [
+                              {
+                                type: "object",
+                                properties: {
+                                  $ref: {
+                                    type: "string",
+                                  },
+                                  summary: {
+                                    type: "string",
+                                  },
+                                  description: {
+                                    type: "string",
+                                  },
+                                },
+                                required: ["$ref"],
+                                additionalProperties: {},
+                              },
+                              {},
+                            ],
+                          },
+                        },
+                        content: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            type: "object",
+                            properties: {
+                              schema: {
+                                anyOf: [
+                                  {
+                                    $ref: "#/$defs/__schema0",
+                                  },
+                                  {
+                                    type: "object",
+                                    properties: {
+                                      $ref: {
+                                        type: "string",
+                                      },
+                                      summary: {
+                                        type: "string",
+                                      },
+                                      description: {
+                                        type: "string",
+                                      },
+                                    },
+                                    required: ["$ref"],
+                                    additionalProperties: {},
+                                  },
+                                ],
+                              },
+                              example: {},
+                              examples: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                              encoding: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                            },
+                            additionalProperties: {},
+                          },
+                        },
+                        links: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: ["description"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              deprecated: {
+                type: "boolean",
+              },
+              security: {
+                type: "array",
+                items: {
+                  type: "object",
+                  propertyNames: {
+                    type: "string",
+                  },
+                  additionalProperties: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+              servers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    url: {
+                      type: "string",
+                    },
+                    description: {
+                      type: "string",
+                    },
+                    variables: {
+                      type: "object",
+                      propertyNames: {
+                        type: "string",
+                      },
+                      additionalProperties: {
+                        type: "object",
+                        properties: {
+                          enum: {
+                            type: "array",
+                            items: {
+                              type: "string",
+                            },
+                          },
+                          default: {
+                            type: "string",
+                          },
+                          description: {
+                            type: "string",
+                          },
+                        },
+                        required: ["default"],
+                        additionalProperties: {},
+                      },
+                    },
+                  },
+                  required: ["url"],
+                  additionalProperties: {},
+                },
+              },
+            },
+            required: ["responses"],
+            additionalProperties: {},
+          },
+          trace: {
+            type: "object",
+            properties: {
+              tags: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+              summary: {
+                type: "string",
+              },
+              description: {
+                type: "string",
+              },
+              externalDocs: {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  url: {
+                    type: "string",
+                    format: "uri",
+                  },
+                },
+                required: ["url"],
+                additionalProperties: {},
+              },
+              operationId: {
+                type: "string",
+              },
+              parameters: {
+                type: "array",
+                items: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        name: {
+                          type: "string",
+                        },
+                        in: {
+                          type: "string",
+                          enum: ["query", "header", "path", "cookie"],
+                        },
+                        description: {
+                          type: "string",
+                        },
+                        required: {
+                          type: "boolean",
+                        },
+                        deprecated: {
+                          type: "boolean",
+                        },
+                        allowEmptyValue: {
+                          type: "boolean",
+                        },
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        style: {
+                          type: "string",
+                        },
+                        explode: {
+                          type: "boolean",
+                        },
+                        example: {},
+                      },
+                      required: ["name", "in"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              requestBody: {
+                anyOf: [
+                  {
+                    type: "object",
+                    properties: {
+                      description: {
+                        type: "string",
+                      },
+                      content: {
+                        type: "object",
+                        propertyNames: {
+                          type: "string",
+                        },
+                        additionalProperties: {
+                          type: "object",
+                          properties: {
+                            schema: {
+                              anyOf: [
+                                {
+                                  $ref: "#/$defs/__schema0",
+                                },
+                                {
+                                  type: "object",
+                                  properties: {
+                                    $ref: {
+                                      type: "string",
+                                    },
+                                    summary: {
+                                      type: "string",
+                                    },
+                                    description: {
+                                      type: "string",
+                                    },
+                                  },
+                                  required: ["$ref"],
+                                  additionalProperties: {},
+                                },
+                              ],
+                            },
+                            example: {},
+                            examples: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                            encoding: {
+                              type: "object",
+                              propertyNames: {
+                                type: "string",
+                              },
+                              additionalProperties: {},
+                            },
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: {
+                        type: "boolean",
+                      },
+                    },
+                    required: ["content"],
+                    additionalProperties: {},
+                  },
+                  {
+                    type: "object",
+                    properties: {
+                      $ref: {
+                        type: "string",
+                      },
+                      summary: {
+                        type: "string",
+                      },
+                      description: {
+                        type: "string",
+                      },
+                    },
+                    required: ["$ref"],
+                    additionalProperties: {},
+                  },
+                ],
+              },
+              responses: {
+                type: "object",
+                propertyNames: {
+                  type: "string",
+                },
+                additionalProperties: {
+                  anyOf: [
+                    {
+                      type: "object",
+                      properties: {
+                        description: {
+                          type: "string",
+                        },
+                        headers: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            anyOf: [
+                              {
+                                type: "object",
+                                properties: {
+                                  $ref: {
+                                    type: "string",
+                                  },
+                                  summary: {
+                                    type: "string",
+                                  },
+                                  description: {
+                                    type: "string",
+                                  },
+                                },
+                                required: ["$ref"],
+                                additionalProperties: {},
+                              },
+                              {},
+                            ],
+                          },
+                        },
+                        content: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {
+                            type: "object",
+                            properties: {
+                              schema: {
+                                anyOf: [
+                                  {
+                                    $ref: "#/$defs/__schema0",
+                                  },
+                                  {
+                                    type: "object",
+                                    properties: {
+                                      $ref: {
+                                        type: "string",
+                                      },
+                                      summary: {
+                                        type: "string",
+                                      },
+                                      description: {
+                                        type: "string",
+                                      },
+                                    },
+                                    required: ["$ref"],
+                                    additionalProperties: {},
+                                  },
+                                ],
+                              },
+                              example: {},
+                              examples: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                              encoding: {
+                                type: "object",
+                                propertyNames: {
+                                  type: "string",
+                                },
+                                additionalProperties: {},
+                              },
+                            },
+                            additionalProperties: {},
+                          },
+                        },
+                        links: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      required: ["description"],
+                      additionalProperties: {},
+                    },
+                    {
+                      type: "object",
+                      properties: {
+                        $ref: {
+                          type: "string",
+                        },
+                        summary: {
+                          type: "string",
+                        },
+                        description: {
+                          type: "string",
+                        },
+                      },
+                      required: ["$ref"],
+                      additionalProperties: {},
+                    },
+                  ],
+                },
+              },
+              deprecated: {
+                type: "boolean",
+              },
+              security: {
+                type: "array",
+                items: {
+                  type: "object",
+                  propertyNames: {
+                    type: "string",
+                  },
+                  additionalProperties: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                    },
+                  },
+                },
+              },
+              servers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    url: {
+                      type: "string",
+                    },
+                    description: {
+                      type: "string",
+                    },
+                    variables: {
+                      type: "object",
+                      propertyNames: {
+                        type: "string",
+                      },
+                      additionalProperties: {
+                        type: "object",
+                        properties: {
+                          enum: {
+                            type: "array",
+                            items: {
+                              type: "string",
+                            },
+                          },
+                          default: {
+                            type: "string",
+                          },
+                          description: {
+                            type: "string",
+                          },
+                        },
+                        required: ["default"],
+                        additionalProperties: {},
+                      },
+                    },
+                  },
+                  required: ["url"],
+                  additionalProperties: {},
+                },
+              },
+            },
+            required: ["responses"],
+            additionalProperties: {},
+          },
+          servers: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                url: {
+                  type: "string",
+                },
+                description: {
+                  type: "string",
+                },
+                variables: {
+                  type: "object",
+                  propertyNames: {
+                    type: "string",
+                  },
+                  additionalProperties: {
+                    type: "object",
+                    properties: {
+                      enum: {
+                        type: "array",
+                        items: {
+                          type: "string",
+                        },
+                      },
+                      default: {
+                        type: "string",
+                      },
+                      description: {
+                        type: "string",
+                      },
+                    },
+                    required: ["default"],
+                    additionalProperties: {},
+                  },
+                },
+              },
+              required: ["url"],
+              additionalProperties: {},
+            },
+          },
+          parameters: {
+            type: "array",
+            items: {
+              anyOf: [
+                {
+                  type: "object",
+                  properties: {
+                    name: {
+                      type: "string",
+                    },
+                    in: {
+                      type: "string",
+                      enum: ["query", "header", "path", "cookie"],
+                    },
+                    description: {
+                      type: "string",
+                    },
+                    required: {
+                      type: "boolean",
+                    },
+                    deprecated: {
+                      type: "boolean",
+                    },
+                    allowEmptyValue: {
+                      type: "boolean",
+                    },
+                    schema: {
+                      anyOf: [
+                        {
+                          $ref: "#/$defs/__schema0",
+                        },
+                        {
+                          type: "object",
+                          properties: {
+                            $ref: {
+                              type: "string",
+                            },
+                            summary: {
+                              type: "string",
+                            },
+                            description: {
+                              type: "string",
+                            },
+                          },
+                          required: ["$ref"],
+                          additionalProperties: {},
+                        },
+                      ],
+                    },
+                    style: {
+                      type: "string",
+                    },
+                    explode: {
+                      type: "boolean",
+                    },
+                    example: {},
+                  },
+                  required: ["name", "in"],
+                  additionalProperties: {},
+                },
+                {
+                  type: "object",
+                  properties: {
+                    $ref: {
+                      type: "string",
+                    },
+                    summary: {
+                      type: "string",
+                    },
+                    description: {
+                      type: "string",
+                    },
+                  },
+                  required: ["$ref"],
+                  additionalProperties: {},
+                },
+              ],
+            },
+          },
+        },
+        additionalProperties: {},
+      },
+    },
+    components: {
+      type: "object",
+      properties: {
+        schemas: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {
+                $ref: "#/$defs/__schema0",
+              },
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        responses: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  headers: {
+                    type: "object",
+                    propertyNames: {
+                      type: "string",
+                    },
+                    additionalProperties: {
+                      anyOf: [
+                        {
+                          type: "object",
+                          properties: {
+                            $ref: {
+                              type: "string",
+                            },
+                            summary: {
+                              type: "string",
+                            },
+                            description: {
+                              type: "string",
+                            },
+                          },
+                          required: ["$ref"],
+                          additionalProperties: {},
+                        },
+                        {},
+                      ],
+                    },
+                  },
+                  content: {
+                    type: "object",
+                    propertyNames: {
+                      type: "string",
+                    },
+                    additionalProperties: {
+                      type: "object",
+                      properties: {
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        example: {},
+                        examples: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                        encoding: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      additionalProperties: {},
+                    },
+                  },
+                  links: {
+                    type: "object",
+                    propertyNames: {
+                      type: "string",
+                    },
+                    additionalProperties: {},
+                  },
+                },
+                required: ["description"],
+                additionalProperties: {},
+              },
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        parameters: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {
+                type: "object",
+                properties: {
+                  name: {
+                    type: "string",
+                  },
+                  in: {
+                    type: "string",
+                    enum: ["query", "header", "path", "cookie"],
+                  },
+                  description: {
+                    type: "string",
+                  },
+                  required: {
+                    type: "boolean",
+                  },
+                  deprecated: {
+                    type: "boolean",
+                  },
+                  allowEmptyValue: {
+                    type: "boolean",
+                  },
+                  schema: {
+                    anyOf: [
+                      {
+                        $ref: "#/$defs/__schema0",
+                      },
+                      {
+                        type: "object",
+                        properties: {
+                          $ref: {
+                            type: "string",
+                          },
+                          summary: {
+                            type: "string",
+                          },
+                          description: {
+                            type: "string",
+                          },
+                        },
+                        required: ["$ref"],
+                        additionalProperties: {},
+                      },
+                    ],
+                  },
+                  style: {
+                    type: "string",
+                  },
+                  explode: {
+                    type: "boolean",
+                  },
+                  example: {},
+                },
+                required: ["name", "in"],
+                additionalProperties: {},
+              },
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        examples: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {},
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        requestBodies: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {
+                type: "object",
+                properties: {
+                  description: {
+                    type: "string",
+                  },
+                  content: {
+                    type: "object",
+                    propertyNames: {
+                      type: "string",
+                    },
+                    additionalProperties: {
+                      type: "object",
+                      properties: {
+                        schema: {
+                          anyOf: [
+                            {
+                              $ref: "#/$defs/__schema0",
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                $ref: {
+                                  type: "string",
+                                },
+                                summary: {
+                                  type: "string",
+                                },
+                                description: {
+                                  type: "string",
+                                },
+                              },
+                              required: ["$ref"],
+                              additionalProperties: {},
+                            },
+                          ],
+                        },
+                        example: {},
+                        examples: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                        encoding: {
+                          type: "object",
+                          propertyNames: {
+                            type: "string",
+                          },
+                          additionalProperties: {},
+                        },
+                      },
+                      additionalProperties: {},
+                    },
+                  },
+                  required: {
+                    type: "boolean",
+                  },
+                },
+                required: ["content"],
+                additionalProperties: {},
+              },
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        headers: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {},
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        securitySchemes: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {},
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        links: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {},
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        callbacks: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {},
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+      },
+      additionalProperties: {},
+    },
+    security: {
+      type: "array",
+      items: {
+        type: "object",
+        propertyNames: {
+          type: "string",
+        },
+        additionalProperties: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+      },
+    },
+    tags: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+          },
+          description: {
+            type: "string",
+          },
+          externalDocs: {
+            type: "object",
+            properties: {
+              description: {
+                type: "string",
+              },
+              url: {
+                type: "string",
+                format: "uri",
+              },
+            },
+            required: ["url"],
+            additionalProperties: {},
+          },
+        },
+        required: ["name"],
+        additionalProperties: {},
+      },
+    },
+    externalDocs: {
+      type: "object",
+      properties: {
+        description: {
+          type: "string",
+        },
+        url: {
+          type: "string",
+          format: "uri",
+        },
+      },
+      required: ["url"],
+      additionalProperties: {},
+    },
+  },
+  required: ["openapi", "info", "paths"],
+  additionalProperties: {},
+  $defs: {
+    __schema0: {
+      type: "object",
+      properties: {
+        type: {
+          type: "string",
+          enum: [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "array",
+            "object",
+            "null",
+          ],
+        },
+        format: {
+          type: "string",
+        },
+        pattern: {
+          type: "string",
+        },
+        properties: {
+          type: "object",
+          propertyNames: {
+            type: "string",
+          },
+          additionalProperties: {
+            anyOf: [
+              {
+                $ref: "#/$defs/__schema0",
+              },
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        additionalProperties: {
+          anyOf: [
+            {
+              type: "boolean",
+            },
+            {
+              $ref: "#/$defs/__schema0",
+            },
+            {
+              type: "object",
+              properties: {
+                $ref: {
+                  type: "string",
+                },
+                summary: {
+                  type: "string",
+                },
+                description: {
+                  type: "string",
+                },
+              },
+              required: ["$ref"],
+              additionalProperties: {},
+            },
+          ],
+        },
+        items: {
+          anyOf: [
+            {
+              $ref: "#/$defs/__schema0",
+            },
+            {
+              type: "object",
+              properties: {
+                $ref: {
+                  type: "string",
+                },
+                summary: {
+                  type: "string",
+                },
+                description: {
+                  type: "string",
+                },
+              },
+              required: ["$ref"],
+              additionalProperties: {},
+            },
+          ],
+        },
+        required: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+        allOf: {
+          type: "array",
+          items: {
+            anyOf: [
+              {
+                $ref: "#/$defs/__schema0",
+              },
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        oneOf: {
+          type: "array",
+          items: {
+            anyOf: [
+              {
+                $ref: "#/$defs/__schema0",
+              },
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        anyOf: {
+          type: "array",
+          items: {
+            anyOf: [
+              {
+                $ref: "#/$defs/__schema0",
+              },
+              {
+                type: "object",
+                properties: {
+                  $ref: {
+                    type: "string",
+                  },
+                  summary: {
+                    type: "string",
+                  },
+                  description: {
+                    type: "string",
+                  },
+                },
+                required: ["$ref"],
+                additionalProperties: {},
+              },
+            ],
+          },
+        },
+        not: {
+          anyOf: [
+            {
+              $ref: "#/$defs/__schema0",
+            },
+            {
+              type: "object",
+              properties: {
+                $ref: {
+                  type: "string",
+                },
+                summary: {
+                  type: "string",
+                },
+                description: {
+                  type: "string",
+                },
+              },
+              required: ["$ref"],
+              additionalProperties: {},
+            },
+          ],
+        },
+        title: {
+          type: "string",
+        },
+        description: {
+          type: "string",
+        },
+        default: {},
+        example: {},
+        enum: {
+          type: "array",
+          items: {},
+        },
+        const: {},
+        nullable: {
+          type: "boolean",
+        },
+        readOnly: {
+          type: "boolean",
+        },
+        writeOnly: {
+          type: "boolean",
+        },
+        deprecated: {
+          type: "boolean",
+        },
+        $schema: {
+          type: "string",
+        },
+      },
+      additionalProperties: {},
+    },
+  },
+} as OpenAPIV3.SchemaObject;

@@ -30,14 +30,14 @@
 		"prettier-plugin-svelte": "^3.4.0",
 		"svelte": "^5.45.6",
 		"svelte-check": "^4.3.4",
-		"sveltekit-auto-openapi": "^0.2.6",
+		"sveltekit-auto-openapi": "^0.2.7",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.48.1",
 		"valibot": "^1.2.0",
-		"vite": "^7.2.6"
+		"vite": "^7.2.6",
+		"arktype": "^2.1.29"
 	},
 	"dependencies": {
-		"arktype": "^2.1.29",
 		"shiki": "^3.20.0"
 	}
 }

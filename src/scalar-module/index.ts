@@ -2,8 +2,7 @@ import { error, json, type RequestHandler } from "@sveltejs/kit";
 import type { OpenAPIV3 } from "openapi-types";
 import { defu } from "defu";
 import { ScalarApiReference } from "./scalar-api-reference.ts";
-import { OpenAPIObject, OpenAPISchema } from "./openapiValidationSchema.ts";
-import z from "zod";
+import { OpenAPISchema } from "./openapiValidationSchema.ts";
 import type { RouteConfig } from "../types/index.ts";
 
 interface ScalarModuleOptions {
@@ -118,17 +117,17 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
     _config: {
       openapiOverride: {
         GET: {
-          requestBody: {
-            $pathParams: {
-              $_skipValidation: skipDocsValidation,
-              schema: z.object({
-                slug: z.union([
-                  z.literal(openApiPath),
-                  z.literal(scalarDocPath),
-                ]),
-              }),
+          parameters: [
+            {
+              name: "slug",
+              in: "path",
+              required: true,
+              schema: {
+                type: "string",
+                enum: [openApiPath, scalarDocPath],
+              },
             },
-          },
+          ],
           responses: {
             200: {
               description: "OpenAPI Schema",
@@ -137,7 +136,11 @@ const ScalarModule = (opts?: ScalarModuleOptions) => {
                   $_skipValidation: skipDocsValidation,
                   schema: showDetailedDocsSchema
                     ? OpenAPISchema
-                    : (z.looseObject({}) as unknown as OpenAPIObject),
+                    : {
+                        type: "object",
+                        properties: {},
+                        additionalProperties: {},
+                      },
                 },
                 "text/html": {
                   $_skipValidation: skipDocsValidation,
